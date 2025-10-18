@@ -16,8 +16,17 @@ const resetMenu = () => {
   user.value = null;
   user.value = Utils.getStore("user");
   if (user.value) {
-    initials.value = user.value.fName[0] + user.value.lName[0];
-    name.value = user.value.fName + " " + user.value.lName;
+    const fName = user.value.fName ?? "";
+    const lName = user.value.lName ?? "";
+    const composedName = `${fName} ${lName}`.trim();
+    const firstInitial = fName.charAt(0);
+    const lastInitial = lName.charAt(0);
+
+    initials.value =
+      `${firstInitial}${lastInitial}`.trim() ||
+      composedName.charAt(0) ||
+      "?";
+    name.value = composedName || user.value.email || "User";
   }
 };
 

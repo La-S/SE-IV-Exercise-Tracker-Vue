@@ -26,9 +26,7 @@ onMounted(() => {
         <p v-if="fullName">Welcome back, {{ fullName }}.</p>
         <p v-else>Welcome to your exercise dashboard.</p>
         <p class="text-body-2">
-          Use this space to plan workouts, track completed sessions, and review
-          your progress. Build the features you need by extending this view,
-          adding charts, summaries, or quick links to detailed logs.
+          coach view placeholder - dashboard
         </p>
       </v-card-text>
     </v-card>

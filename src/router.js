@@ -3,15 +3,14 @@ import { createRouter, createWebHistory } from "vue-router";
 import Login from "./views/Login.vue";
 
 import Dashboard from "./views/Dashboard.vue";
+import Utils from "./config/utils";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
-      alias: "/login",
-      name: "login",
-      component: Login,
+      redirect: "/dashboard",
     },
     {
       path: "/dashboard",
@@ -19,10 +18,25 @@ const router = createRouter({
       component: Dashboard,
     },
     {
+      path: "/login",
+      name: "login",
+      component: Login,
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/dashboard",
     },
   ],
+});
+
+router.beforeEach((to, from, next) => {
+  const user = Utils.getStore("user");
+
+  if (user && to.name === "login") {
+    return next({ name: "dashboard" });
+  }
+
+  return next();
 });
 
 export default router;
