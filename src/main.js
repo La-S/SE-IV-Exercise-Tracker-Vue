@@ -2,7 +2,7 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router.js";
 import vuetify from "./plugins/vuetify.js";
-import Utils from "./config/utils";
+import Utils from "./config/utils"; 
 
 const ensureMockUser = () => {
   const existingUser = Utils.getStore("user");

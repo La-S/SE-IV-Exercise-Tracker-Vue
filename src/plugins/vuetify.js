@@ -1,41 +1,32 @@
-/**
- * Vuetify3 Plugin
- */
-import { createVuetify } from "vuetify";
+import { createVuetify } from 'vuetify'
+import 'vuetify/styles'
 
-// Misc
-import { loadFonts } from "./webfontloader";
-loadFonts();
-
-// Styles
-import "vuetify/styles";
-import "@mdi/font/css/materialdesignicons.css";
-
-const myCustomLightTheme = {
-  dark: false,
-  colors: {
-    primary: "#80162B",
-    secondary: "#E1E1E1",
-    accent: "#47121D",
-    success: "#47121D",
-    error: "#EE5044",
-    teal: "#63BAC0",
-    blue: "#196CA2",
-    yellow: "#F8C545",
-    darkblue: "#032F45",
-  },
-};
-
-const vuetify = createVuetify({
+export default createVuetify({
   theme: {
-    defaultTheme: "myCustomLightTheme",
+    defaultTheme: 'dark', 
     themes: {
-      myCustomLightTheme,
+      light: {
+        colors: {
+          background: '#FFFFFF',
+          surface: '#FFFFFF',
+          primary: '#58f707', 
+          secondary: '#121212',
+          text: '#000000',
+        },
+      },
+      dark: {
+        colors: {
+          background: '#121212',
+          surface: '#121212',
+          primary: '#58f707',
+          secondary: '#1f1f1f',
+          text: '#FFFFFF',
+        },
+      },
     },
   },
-  icons: {
-    defaultSet: "mdi",
+  typography: {
+    defaultFontFamily: 'Inter, sans-serif', 
+    h1: { fontFamily: 'Anton, sans-serif' },
   },
-});
-
-export default vuetify;
+})
