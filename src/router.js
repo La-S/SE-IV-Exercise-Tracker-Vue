@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import Login from "./views/Login.vue";
 
 import Dashboard from "./views/Dashboard.vue";
+import ExercisePlans from "./views/ExercisePlans.vue";
 import Utils from "./config/utils";
 
 const router = createRouter({
@@ -16,6 +17,11 @@ const router = createRouter({
       path: "/dashboard",
       name: "dashboard",
       component: Dashboard,
+    },
+    {
+      path: "/exercise-plans",
+      name: "exercise-plans",
+      component: ExercisePlans,
     },
     {
       path: "/login",
