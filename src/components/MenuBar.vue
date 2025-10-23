@@ -3,10 +3,11 @@ import ExerciseLogo from "../assets/exercise_icon.png";
 import { ref, onMounted } from "vue";
 import Utils from "../config/utils";
 import AuthServices from "../services/authServices";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useTheme } from "vuetify"; 
 
 const router = useRouter();
+const route = useRoute();
 const theme = useTheme();
 
 const user = ref(null);
@@ -49,6 +50,11 @@ const toggleTheme = () => {
   theme.global.name.value = theme.global.current.value.dark ? "light" : "dark";
 };
 
+const navItems = [
+  { label: "Dashboard", name: "dashboard" },
+  { label: "Exercise Plans", name: "exercise-plans" },
+];
+
 onMounted(() => {
   logoURL.value = ExerciseLogo;
   resetMenu();
@@ -64,6 +70,19 @@ onMounted(() => {
     <v-toolbar-title class="text-h4 font-weight-bold">
       {{ title }}
     </v-toolbar-title>
+
+    <div class="d-none d-sm-flex">
+      <v-btn
+        v-for="item in navItems"
+        :key="item.name"
+        :to="{ name: item.name }"
+        :variant="route.name === item.name ? 'tonal' : 'text'"
+        color="primary"
+        class="mx-1 font-weight-medium"
+      >
+        {{ item.label }}
+      </v-btn>
+    </div>
 
     <v-spacer></v-spacer>
 
