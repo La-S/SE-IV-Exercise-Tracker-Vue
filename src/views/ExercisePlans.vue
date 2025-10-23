@@ -353,14 +353,9 @@ const removeExerciseFromPlan = (exerciseId) => {
               />
               <v-select
                 v-model="newExercise.type"
-                :items="['Strength', 'Cardio', 'Mobility', 'Recovery', 'General']"
+                :items="['Strength', 'Cardio', 'Mobility', 'Other']"
                 label="Type"
                 prepend-inner-icon="mdi-format-list-bulleted"
-              />
-              <v-text-field
-                v-model="newExercise.muscleGroup"
-                label="Muscle group / focus"
-                prepend-inner-icon="mdi-target"
               />
               <v-text-field
                 v-model="newExercise.restTimer"
@@ -418,11 +413,6 @@ const removeExerciseFromPlan = (exerciseId) => {
               label="Plan name"
               prepend-inner-icon="mdi-file-document-edit"
               required
-            />
-            <v-text-field
-              v-model="newPlan.focusArea"
-              label="Focus area"
-              prepend-inner-icon="mdi-target"
             />
             <v-textarea
               v-model="newPlan.description"
