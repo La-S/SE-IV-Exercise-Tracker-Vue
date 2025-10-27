@@ -122,20 +122,27 @@ const newExercise = reactive({
   notes: "",
 });
 
+const appendExercise = (exercise) => {
+  const restTimerValue = Number(exercise.restTimer);
+  const createdExercise = {
+    id: Date.now(),
+    name: exercise.name.trim(),
+    type: exercise.type.trim() || "General",
+    muscleGroup: exercise.muscleGroup.trim(),
+    restTimer: Number.isFinite(restTimerValue) ? restTimerValue : 0,
+    notes: exercise.notes.trim(),
+  };
+
+  availableExercises.value.push(createdExercise);
+  return createdExercise;
+};
+
 const createExercise = () => {
   if (!newExercise.name.trim()) {
     return;
   }
 
-  const restTimerValue = Number(newExercise.restTimer);
-  availableExercises.value.push({
-    id: Date.now(),
-    name: newExercise.name.trim(),
-    type: newExercise.type.trim() || "General",
-    muscleGroup: newExercise.muscleGroup.trim(),
-    restTimer: Number.isFinite(restTimerValue) ? restTimerValue : 0,
-    notes: newExercise.notes.trim(),
-  });
+  appendExercise(newExercise);
 
   Object.assign(newExercise, {
     name: "",
@@ -146,20 +153,72 @@ const createExercise = () => {
   });
 };
 
-const selectedExerciseId = ref(null);
+const addExerciseDialog = ref(false);
+const selectedExerciseIds = ref([]);
+const showInlineExerciseForm = ref(false);
 
-const addExerciseToPlan = () => {
-  if (!selectedPlan.value || !selectedExerciseId.value) return;
-  const exercise = availableExercises.value.find(
-    (item) => item.id === selectedExerciseId.value
-  );
-  if (!exercise) return;
+const inlineExercise = reactive({
+  name: "",
+  type: "",
+  muscleGroup: "",
+  restTimer: 90,
+  notes: "",
+});
 
-  if (!selectedPlan.value.exercises.some((item) => item.id === exercise.id)) {
-    selectedPlan.value.exercises.push({ ...exercise });
+const resetInlineExercise = () => {
+  Object.assign(inlineExercise, {
+    name: "",
+    type: "",
+    muscleGroup: "",
+    restTimer: 90,
+    notes: "",
+  });
+};
+
+watch(addExerciseDialog, (isOpen) => {
+  if (!isOpen) {
+    selectedExerciseIds.value = [];
+    showInlineExerciseForm.value = false;
+    resetInlineExercise();
+  }
+});
+
+const toggleInlineExerciseForm = () => {
+  if (showInlineExerciseForm.value) {
+    showInlineExerciseForm.value = false;
+    resetInlineExercise();
+  } else {
+    showInlineExerciseForm.value = true;
+  }
+};
+
+const createInlineExercise = () => {
+  if (!inlineExercise.name.trim()) {
+    return;
   }
 
-  selectedExerciseId.value = null;
+  const createdExercise = appendExercise(inlineExercise);
+  toggleInlineExerciseForm();
+  selectedExerciseIds.value = Array.from(
+    new Set([...selectedExerciseIds.value, createdExercise.id])
+  );
+};
+
+const addExercisesToPlan = () => {
+  if (!selectedPlan.value || !selectedExerciseIds.value.length) return;
+
+  const planExercises = selectedPlan.value.exercises;
+  const existingIds = new Set(planExercises.map((exercise) => exercise.id));
+
+  selectedExerciseIds.value.forEach((exerciseId) => {
+    const exercise = availableExercises.value.find((item) => item.id === exerciseId);
+    if (exercise && !existingIds.has(exercise.id)) {
+      planExercises.push({ ...exercise });
+      existingIds.add(exercise.id);
+    }
+  });
+
+  addExerciseDialog.value = false;
 };
 
 const removeExerciseFromPlan = (exerciseId) => {
@@ -244,49 +303,21 @@ const removeExerciseFromPlan = (exerciseId) => {
 
               <v-divider class="my-4" />
 
-              <v-row class="align-center">
-                <v-col cols="12" md="8">
-                  <v-autocomplete
-                    v-model="selectedExerciseId"
-                    :items="availableExercises"
-                    item-title="name"
-                    item-value="id"
-                    label="Add exercise to plan"
-                    prepend-inner-icon="mdi-dumbbell"
-                    clearable
-                  >
-                    <template #selection="{ item }">
-                      <span>{{ item?.title }}</span>
-                    </template>
-                    <template #item="{ props, item }">
-                      <v-list-item v-bind="props" :title="item.title" :subtitle="item.raw.type">
-                        <template #append>
-                          <v-chip size="x-small" color="primary" variant="outlined">
-                            {{ item.raw.muscleGroup || "General" }}
-                          </v-chip>
-                        </template>
-                      </v-list-item>
-                    </template>
-                  </v-autocomplete>
-                </v-col>
-                <v-col cols="12" md="4">
-                  <v-btn
-                    block
-                    color="primary"
-                    :disabled="!selectedExerciseId"
-                    @click="addExerciseToPlan"
-                  >
-                    Add to Plan
-                  </v-btn>
-                </v-col>
-              </v-row>
-
-              <v-divider class="my-4" />
-
               <div>
-                <h3 class="text-subtitle-1 font-weight-medium mb-4">Plan Exercises</h3>
+                <div class="d-flex align-center justify-space-between mb-4 flex-wrap" style="gap: 12px;">
+                  <h3 class="text-subtitle-1 font-weight-medium mb-0">Plan Exercises</h3>
+                  <v-btn
+                    color="primary"
+                    variant="tonal"
+                    size="small"
+                    prepend-icon="mdi-plus"
+                    @click="addExerciseDialog = true"
+                  >
+                    Add Exercises
+                  </v-btn>
+                </div>
                 <v-alert v-if="!selectedPlan.exercises.length" variant="tonal" type="info">
-                  No exercises have been added yet. Use the selector above to add one.
+                  No exercises have been added yet. Use the Add Exercises button to include one.
                 </v-alert>
 
                 <v-expansion-panels v-else>
@@ -341,7 +372,7 @@ const removeExerciseFromPlan = (exerciseId) => {
 
       <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0">
         <v-card class="h-100 d-flex flex-column">
-          <v-card-title>Create Exercise</v-card-title>
+          <v-card-title>Create Exehhhhrcise</v-card-title>
           <v-divider />
           <v-card-text class="flex-grow-1">
             <v-form @submit.prevent="createExercise">
@@ -393,6 +424,121 @@ const removeExerciseFromPlan = (exerciseId) => {
         </v-card>
       </v-col>
     </v-row>
+
+    <v-dialog v-model="addExerciseDialog" max-width="560">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <span>Select Exercises</span>
+          <v-btn
+            size="small"
+            variant="text"
+            color="primary"
+            :prepend-icon="showInlineExerciseForm ? 'mdi-close-circle-outline' : 'mdi-plus'"
+            @click="toggleInlineExerciseForm"
+          >
+            {{ showInlineExerciseForm ? "Close Form" : "New Exercise" }}
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-expand-transition>
+            <div v-if="showInlineExerciseForm" class="mb-4">
+              <v-form @submit.prevent="createInlineExercise" class="d-flex flex-column" style="gap: 12px;">
+                <v-text-field
+                  v-model="inlineExercise.name"
+                  label="Exercise name"
+                  prepend-inner-icon="mdi-dumbbell"
+                  density="comfortable"
+                  required
+                />
+                <v-select
+                  v-model="inlineExercise.type"
+                  :items="['Strength', 'Cardio', 'Mobility', 'Other']"
+                  label="Type"
+                  prepend-inner-icon="mdi-format-list-bulleted"
+                  density="comfortable"
+                />
+                <v-text-field
+                  v-model="inlineExercise.muscleGroup"
+                  label="Muscle group"
+                  prepend-inner-icon="mdi-dna"
+                  density="comfortable"
+                />
+                <v-text-field
+                  v-model="inlineExercise.restTimer"
+                  label="Rest timer (seconds)"
+                  type="number"
+                  min="0"
+                  prepend-inner-icon="mdi-timer-outline"
+                  density="comfortable"
+                />
+                <v-textarea
+                  v-model="inlineExercise.notes"
+                  label="Notes"
+                  rows="3"
+                  auto-grow
+                  prepend-inner-icon="mdi-note-text"
+                  density="comfortable"
+                />
+                <div class="d-flex justify-end" style="gap: 8px;">
+                  <v-btn variant="text" @click="toggleInlineExerciseForm">
+                    Cancel
+                  </v-btn>
+                  <v-btn type="submit" color="primary" prepend-icon="mdi-content-save">
+                    Save Exercise
+                  </v-btn>
+                </div>
+              </v-form>
+            </div>
+          </v-expand-transition>
+          <v-list
+            v-if="availableExercises.length"
+            density="comfortable"
+            lines="two"
+            style="max-height: 360px; overflow-y: auto;"
+          >
+            <v-item-group v-model="selectedExerciseIds" multiple>
+              <template v-for="exercise in availableExercises" :key="exercise.id">
+                <v-item :value="exercise.id" v-slot="{ isSelected, toggle }">
+                  <v-list-item @click="toggle" class="rounded-lg">
+                    <template #prepend>
+                      <v-checkbox
+                        :model-value="isSelected"
+                        density="compact"
+                        hide-details
+                        @click.stop="toggle"
+                      />
+                    </template>
+                    <v-list-item-title>{{ exercise.name }}</v-list-item-title>
+                    <v-list-item-subtitle>
+                      {{ exercise.type }} &bull; {{ exercise.muscleGroup || "General" }}
+                    </v-list-item-subtitle>
+                    <template #append>
+                      <v-chip size="x-small" color="primary" variant="outlined">
+                        Rest {{ exercise.restTimer }}s
+                      </v-chip>
+                    </template>
+                  </v-list-item>
+                </v-item>
+              </template>
+            </v-item-group>
+          </v-list>
+          <v-alert v-else type="info" variant="tonal">
+            No exercises are available yet. Use New Exercise to create one.
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="addExerciseDialog = false">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            :disabled="!selectedExerciseIds.length"
+            @click="addExercisesToPlan"
+          >
+            Add to Plan
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="newPlanDialog" max-width="520">
       <v-card>
