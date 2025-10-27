@@ -52,10 +52,10 @@ const selectedPlanKey = reactive({ type: "team", id: teamPlans.value[0]?.id ?? n
 watch(
   () => [teamPlans.value.length, individualPlans.value.length],
   () => {
-    if (selectedPlanKey.id) return;
-    const defaultPlan =
-      teamPlans.value[0] ??
-      individualPlans.value[0] ??
+    if(selectedPlanKey.id)
+      return;
+    const defaultPlan=teamPlans.value[0]??
+      individualPlans.value[0]??
       null;
     if (defaultPlan) {
       selectedPlanKey.type = teamPlans.value.find((plan) => plan.id === defaultPlan.id)
@@ -67,10 +67,10 @@ watch(
   { immediate: true }
 );
 
-const selectedPlan = computed(() => {
-  if (!selectedPlanKey.id) return null;
-  const collection =
-    selectedPlanKey.type === "team" ? teamPlans.value : individualPlans.value;
+const selectedPlan = computed(function() {
+  if(!selectedPlanKey.id)
+    return null;
+  const collection = selectedPlanKey.type === "team" ? teamPlans.value: individualPlans.value;
   return collection.find((plan) => plan.id === selectedPlanKey.id) ?? null;
 });
 
@@ -176,7 +176,7 @@ const exerciseSearch = ref("");
 const exerciseFocusFilter = ref("all");
 const exerciseFocusOptions = computed(() => [
   { label: "All", value: "all" },
-    muscleFocusOrder.map((focus) => ({
+  ...muscleFocusOrder.map((focus) => ({
     label: focus,
     value: focus.toLowerCase(),
   })),
