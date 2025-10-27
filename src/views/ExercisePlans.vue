@@ -371,57 +371,6 @@ const removeExerciseFromPlan = (exerciseId) => {
       </v-col>
 
       <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0">
-        <v-card class="h-100 d-flex flex-column">
-          <v-card-title>Create Exehhhhrcise</v-card-title>
-          <v-divider />
-          <v-card-text class="flex-grow-1">
-            <v-form @submit.prevent="createExercise">
-              <v-text-field
-                v-model="newExercise.name"
-                label="Exercise name"
-                prepend-inner-icon="mdi-dumbbell"
-                required
-              />
-              <v-select
-                v-model="newExercise.type"
-                :items="['Strength', 'Cardio', 'Mobility', 'Other']"
-                label="Type"
-                prepend-inner-icon="mdi-format-list-bulleted"
-              />
-              <v-text-field
-                v-model="newExercise.restTimer"
-                label="Rest timer (seconds)"
-                type="number"
-                min="0"
-                prepend-inner-icon="mdi-timer-outline"
-              />
-              <v-textarea
-                v-model="newExercise.notes"
-                label="Notes"
-                rows="3"
-                auto-grow
-                prepend-inner-icon="mdi-note-text"
-              />
-              <v-btn type="submit" color="primary" block class="mt-4">
-                Save Exercise
-              </v-btn>
-            </v-form>
-          </v-card-text>
-          <v-divider />
-          <v-card-text>
-            <h3 class="text-subtitle-2 mb-2 text-medium-emphasis font-weight-medium">Available Exercises</h3>
-            <v-chip-group column>
-              <v-chip
-                v-for="exercise in availableExercises"
-                :key="exercise.id"
-                size="small"
-                variant="outlined"
-              >
-                {{ exercise.name }}
-              </v-chip>
-            </v-chip-group>
-          </v-card-text>
-        </v-card>
       </v-col>
     </v-row>
 
