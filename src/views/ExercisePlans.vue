@@ -304,7 +304,7 @@ const removeExerciseFromPlan = (exerciseId) => {
               <v-divider class="my-4" />
 
               <div>
-                <div class="d-flex align-center justify-space-between mb-4 flex-wrap" style="gap: 12px;">
+                <div class="d-flex align-center justify-space-between mb-4 flex-wrap">
                   <h3 class="text-subtitle-1 font-weight-medium mb-0">Plan Exercises</h3>
                   <v-btn
                     color="primary"
@@ -338,14 +338,13 @@ const removeExerciseFromPlan = (exerciseId) => {
                         <v-col cols="12" md="8">
                           <p class="text-body-2 mb-2">{{ exercise.notes || "No notes provided." }}</p>
                         </v-col>
-                        <v-col cols="12" md="4" class="d-flex flex-column" style="gap: 8px;">
-                          <v-chip color="secondary" variant="elevated" class="align-self-start mb-2">
+                        <v-col cols="12" md="4" class="d-flex flex-column align-start">
+                          <v-chip color="secondary" variant="elevated" class="mb-2">
                             Rest: {{ exercise.restTimer }}s
                           </v-chip>
                           <v-btn
                             color="error"
                             variant="text"
-                            class="align-self-start"
                             @click="removeExerciseFromPlan(exercise.id)"
                           >
                             Remove
@@ -391,13 +390,14 @@ const removeExerciseFromPlan = (exerciseId) => {
         <v-card-text>
           <v-expand-transition>
             <div v-if="showInlineExerciseForm" class="mb-4">
-              <v-form @submit.prevent="createInlineExercise" class="d-flex flex-column" style="gap: 12px;">
+              <v-form @submit.prevent="createInlineExercise" class="d-flex flex-column">
                 <v-text-field
                   v-model="inlineExercise.name"
                   label="Exercise name"
                   prepend-inner-icon="mdi-dumbbell"
                   density="comfortable"
                   required
+                  class="mb-3"
                 />
                 <v-select
                   v-model="inlineExercise.type"
@@ -405,12 +405,14 @@ const removeExerciseFromPlan = (exerciseId) => {
                   label="Type"
                   prepend-inner-icon="mdi-format-list-bulleted"
                   density="comfortable"
+                  class="mb-3"
                 />
                 <v-text-field
                   v-model="inlineExercise.muscleGroup"
                   label="Muscle group"
                   prepend-inner-icon="mdi-dna"
                   density="comfortable"
+                  class="mb-3"
                 />
                 <v-text-field
                   v-model="inlineExercise.restTimer"
@@ -419,6 +421,7 @@ const removeExerciseFromPlan = (exerciseId) => {
                   min="0"
                   prepend-inner-icon="mdi-timer-outline"
                   density="comfortable"
+                  class="mb-3"
                 />
                 <v-textarea
                   v-model="inlineExercise.notes"
@@ -427,8 +430,9 @@ const removeExerciseFromPlan = (exerciseId) => {
                   auto-grow
                   prepend-inner-icon="mdi-note-text"
                   density="comfortable"
+                  class="mb-3"
                 />
-                <div class="d-flex justify-end" style="gap: 8px;">
+                <div class="d-flex justify-end mt-2">
                   <v-btn variant="text" @click="toggleInlineExerciseForm">
                     Cancel
                   </v-btn>
