@@ -28,7 +28,7 @@ const availableExercises = ref([
     id: 501,
     name: "Back Squat",
     type: "Strength",
-    muscleGroup: "Lower Body",
+    muscleGroup: "Quad",
     restTimer: 120,
     notes: "3 warmup sets before working weight.",
   },
@@ -36,7 +36,7 @@ const availableExercises = ref([
     id: 502,
     name: "Rowing Intervals",
     type: "Cardio",
-    muscleGroup: "Full Body",
+    muscleGroup: "Cardio",
     restTimer: 60,
     notes: "5 rounds: 250m hard, 90s easy row.",
   },
@@ -52,10 +52,10 @@ const selectedPlanKey = reactive({ type: "team", id: teamPlans.value[0]?.id ?? n
 watch(
   () => [teamPlans.value.length, individualPlans.value.length],
   () => {
-    if (selectedPlanKey.id) return;
-    const defaultPlan =
-      teamPlans.value[0] ??
-      individualPlans.value[0] ??
+    if(selectedPlanKey.id)
+      return;
+    const defaultPlan=teamPlans.value[0]??
+      individualPlans.value[0]??
       null;
     if (defaultPlan) {
       selectedPlanKey.type = teamPlans.value.find((plan) => plan.id === defaultPlan.id)
@@ -67,12 +67,28 @@ watch(
   { immediate: true }
 );
 
-const selectedPlan = computed(() => {
-  if (!selectedPlanKey.id) return null;
-  const collection =
-    selectedPlanKey.type === "team" ? teamPlans.value : individualPlans.value;
+const selectedPlan = computed(function() {
+  if(!selectedPlanKey.id)
+    return null;
+  const collection = selectedPlanKey.type === "team" ? teamPlans.value: individualPlans.value;
   return collection.find((plan) => plan.id === selectedPlanKey.id) ?? null;
 });
+
+const muscleFocusOrder = [
+  "Core",
+  "Chest",
+  "Bicep",
+  "Tricep",
+  "Forearm",
+  "Shoulder",
+  "Back",
+  "Hamstring",
+  "Calf",
+  "Quad",
+  "Glute",
+  "Cardio",
+  "Other"
+];
 
 const newPlanDialog = ref(false);
 const newPlan = reactive({
@@ -156,6 +172,15 @@ const createExercise = () => {
 const addExerciseDialog = ref(false);
 const selectedExerciseIds = ref([]);
 const showInlineExerciseForm = ref(false);
+const exerciseSearch = ref("");
+const exerciseFocusFilter = ref("all");
+const exerciseFocusOptions = computed(() => [
+  { label: "All", value: "all" },
+  ...muscleFocusOrder.map((focus) => ({
+    label: focus,
+    value: focus.toLowerCase(),
+  })),
+]);
 
 const inlineExercise = reactive({
   name: "",
@@ -180,6 +205,8 @@ watch(addExerciseDialog, (isOpen) => {
     selectedExerciseIds.value = [];
     showInlineExerciseForm.value = false;
     resetInlineExercise();
+    exerciseSearch.value = "";
+    exerciseFocusFilter.value = "all";
   }
 });
 
@@ -200,9 +227,34 @@ const createInlineExercise = () => {
   const createdExercise = appendExercise(inlineExercise);
   toggleInlineExerciseForm();
   selectedExerciseIds.value = Array.from(
-    new Set([...selectedExerciseIds.value, createdExercise.id])
+    new Set([selectedExerciseIds.value, createdExercise.id])
   );
 };
+
+const sortedExercises = computed(() => {
+  const term = exerciseSearch.value.trim().toLowerCase();
+
+  const filterFocus = exerciseFocusFilter.value !== "all" ? exerciseFocusFilter.value : null;
+
+  const filtered = availableExercises.value.filter((exercise) => {
+    const name = exercise.name.toLowerCase();
+    const type = exercise.type.toLowerCase();
+    const muscle = (exercise.muscleGroup || "").toLowerCase();
+    const notes = (exercise.notes || "").toLowerCase();
+
+    const matchesSearch = !term || name.includes(term) || type.includes(term) || muscle.includes(term) || notes.includes(term);
+
+    if (!matchesSearch) return false;
+
+    if (filterFocus && muscle !== filterFocus) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return filtered;
+});
 
 const addExercisesToPlan = () => {
   if (!selectedPlan.value || !selectedExerciseIds.value.length) return;
@@ -255,11 +307,7 @@ const removeExerciseFromPlan = (exerciseId) => {
                   :key="plan.id"
                   :active="selectedPlanKey.type === section.type && selectedPlanKey.id === plan.id"
                   rounded
-                  @click="
-                    selectedPlanKey.type = section.type;
-                    selectedPlanKey.id = plan.id;
-                  "
-                >
+                  @click= "selectedPlanKey.type = section.type; selectedPlanKey.id = plan.id;" >
                   <v-list-item-title>{{ plan.name }}</v-list-item-title>
                   <v-list-item-subtitle>
                     {{ plan.focusArea || "General focus" }}
@@ -336,7 +384,7 @@ const removeExerciseFromPlan = (exerciseId) => {
                     <v-expansion-panel-text>
                       <v-row>
                         <v-col cols="12" md="8">
-                          <p class="text-body-2 mb-2">{{ exercise.notes || "No notes provided." }}</p>
+                          <p class="text-body-2 mb-2">{{ exercise.notes || "No notes" }}</p>
                         </v-col>
                         <v-col cols="12" md="4" class="d-flex flex-column align-start">
                           <v-chip color="secondary" variant="elevated" class="mb-2">
@@ -443,14 +491,35 @@ const removeExerciseFromPlan = (exerciseId) => {
               </v-form>
             </div>
           </v-expand-transition>
+          <v-row class="mb-3" dense>
+            <v-col cols="12" md="8">
+              <v-text-field
+                v-model="exerciseSearch"
+                label="Search exercises"
+                prepend-inner-icon="mdi-magnify"
+                density="comfortable"
+              />
+            </v-col>
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="exerciseFocusFilter"
+                :items="exerciseFocusOptions"
+                item-title="label"
+                item-value="value"
+                label="Focus filter"
+                prepend-inner-icon="mdi-dna"
+                density="comfortable"
+              />
+            </v-col>
+          </v-row>
           <v-list
-            v-if="availableExercises.length"
+            v-if="sortedExercises.length"
             density="comfortable"
             lines="two"
             style="max-height: 360px; overflow-y: auto;"
           >
             <v-item-group v-model="selectedExerciseIds" multiple>
-              <template v-for="exercise in availableExercises" :key="exercise.id">
+              <template v-for="exercise in sortedExercises" :key="exercise.id">
                 <v-item :value="exercise.id" v-slot="{ isSelected, toggle }">
                   <v-list-item @click="toggle" class="rounded-lg">
                     <template #prepend>
@@ -475,9 +544,11 @@ const removeExerciseFromPlan = (exerciseId) => {
               </template>
             </v-item-group>
           </v-list>
+
           <v-alert v-else type="info" variant="tonal">
-            No exercises are available yet. Use New Exercise to create one.
+            No results found for this muscle focus.
           </v-alert>
+
         </v-card-text>
         <v-card-actions>
           <v-spacer />
