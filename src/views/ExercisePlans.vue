@@ -498,7 +498,6 @@ const removeExerciseFromPlan = (exerciseId) => {
                 label="Search exercises"
                 prepend-inner-icon="mdi-magnify"
                 density="comfortable"
-                clearable
               />
             </v-col>
             <v-col cols="12" md="4">
