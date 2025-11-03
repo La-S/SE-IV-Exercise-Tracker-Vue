@@ -5,6 +5,7 @@ import Login from "./views/Login.vue";
 import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
 import Utils from "./config/utils";
+import Teams from "./views/Teams.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,6 +23,11 @@ const router = createRouter({
       path: "/exercise-plans",
       name: "exercise-plans",
       component: ExercisePlans,
+    },
+    {
+      path: "/teams",
+      name: "teams",
+      component: Teams,
     },
     {
       path: "/login",

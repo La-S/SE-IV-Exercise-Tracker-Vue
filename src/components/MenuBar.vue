@@ -53,6 +53,7 @@ const toggleTheme = () => {
 const navItems = [
   { label: "Dashboard", name: "dashboard" },
   { label: "Exercise Plans", name: "exercise-plans" },
+  { label: "Teams", name: "teams" },
 ];
 
 onMounted(() => {
