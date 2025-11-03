@@ -5,6 +5,7 @@ import Login from "./views/Login.vue";
 import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
 import Utils from "./config/utils";
+import AthleteHomePage from "./views/AthleteHomePage.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,6 +28,11 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: Login,
+    },
+    {
+      path: "/athlete-homepage",
+      name: "athelete-homepage",
+      component: AthleteHomePage,
     },
     {
       path: "/:pathMatch(.*)*",
