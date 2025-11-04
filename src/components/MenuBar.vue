@@ -1,10 +1,10 @@
 <script setup>
 import ExerciseLogo from "../assets/exercise_icon.png";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed} from "vue";
 import Utils from "../config/utils";
 import AuthServices from "../services/authServices";
 import { useRouter, useRoute } from "vue-router";
-import { useTheme } from "vuetify"; 
+import { useTheme } from "vuetify";
 
 const router = useRouter();
 const route = useRoute();
@@ -16,21 +16,46 @@ const initials = ref("");
 const name = ref("");
 const logoURL = ref("");
 
+const defaultNavItems = [
+  { label: "Dashboard", name: "dashboard" },
+  { label: "Exercise Plans", name: "exercise-plans" },
+];
+
+const isAthleteRoute = computed(() => {
+  const p = (route.path || "").toLowerCase();
+  return p.includes("athlete-homepage") || p.includes("current-workout") || p.includes("/athlete");
+});
+
+const athleteNavItems = computed(() => {
+  const p = (route.path || "").toLowerCase();
+  if (p.includes("athlete-homepage")) {
+    return [{ label: "Workout", name: "current-workout" }];
+  }
+  if (p.includes("current-workout")) {
+    return [{ label: "Home", name: "athlete-homepage" }];
+  }
+  return [{ label: "Home", name: "athlete-homepage" }];
+});
+
+const navItems = computed(() => defaultNavItems);
+
 const resetMenu = () => {
   user.value = null;
-  user.value = Utils.getStore("user");
+  user.value = Utils.getStore("user") ?? null;
+
   if (user.value) {
     const fName = user.value.fName ?? "";
     const lName = user.value.lName ?? "";
     const composedName = `${fName} ${lName}`.trim();
-    const firstInitial = fName.charAt(0);
-    const lastInitial = lName.charAt(0);
+    const firstInitial = (fName && fName.charAt(0)) || "";
+    const lastInitial = (lName && lName.charAt(0)) || "";
 
     initials.value =
-      `${firstInitial}${lastInitial}`.trim() ||
-      composedName.charAt(0) ||
-      "?";
+      `${firstInitial}${lastInitial}`.trim() || composedName.charAt(0) || "?";
     name.value = composedName || user.value.email || "User";
+  } else {
+    initials.value = "";
+    name.value = "";
   }
 };
 
@@ -50,11 +75,6 @@ const toggleTheme = () => {
   theme.global.name.value = theme.global.current.value.dark ? "light" : "dark";
 };
 
-const navItems = [
-  { label: "Dashboard", name: "dashboard" },
-  { label: "Exercise Plans", name: "exercise-plans" },
-];
-
 onMounted(() => {
   logoURL.value = ExerciseLogo;
   resetMenu();
@@ -72,16 +92,31 @@ onMounted(() => {
     </v-toolbar-title>
 
     <div class="d-none d-sm-flex">
-      <v-btn
-        v-for="item in navItems"
-        :key="item.name"
-        :to="{ name: item.name }"
-        :variant="route.name === item.name ? 'tonal' : 'text'"
-        color="primary"
-        class="mx-1 font-weight-medium"
-      >
-        {{ item.label }}
-      </v-btn>
+      <template v-if="isAthleteRoute">
+        <v-btn
+          v-for="item in athleteNavItems"
+          :key="item.name"
+          :to="{ name: item.name }"
+          :variant="route.name === item.name ? 'tonal' : 'text'"
+          color="primary"
+          class="mx-1 font-weight-medium"
+        >
+          {{ item.label }}
+        </v-btn>
+      </template>
+
+      <template v-else>
+        <v-btn
+          v-for="item in navItems"
+          :key="item.name"
+          :to="{ name: item.name }"
+          :variant="route.name === item.name ? 'tonal' : 'text'"
+          color="primary"
+          class="mx-1 font-weight-medium"
+        >
+          {{ item.label }}
+        </v-btn>
+      </template>
     </div>
 
     <v-spacer></v-spacer>
