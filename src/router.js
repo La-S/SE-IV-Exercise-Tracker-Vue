@@ -6,6 +6,7 @@ import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
 import Utils from "./config/utils";
 import AthleteHomePage from "./views/AthleteHomePage.vue";
+import CurrentWorkout from "./views/CurrentWorkout.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,8 +32,13 @@ const router = createRouter({
     },
     {
       path: "/athlete-homepage",
-      name: "athelete-homepage",
+      name: "athlete-homepage",
       component: AthleteHomePage,
+    },
+    {
+      path: "/current-workout",
+      name: "current-workout",
+      component: CurrentWorkout,
     },
     {
       path: "/:pathMatch(.*)*",
