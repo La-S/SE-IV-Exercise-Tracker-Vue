@@ -1,311 +1,282 @@
+<template>
+  <v-container class="pa-4 text-center">
+    <template v-if="!activeWorkout && !allWorkoutsCompleted">
+      <v-row justify="center" align="center" class="text-center mt-6">
+        <v-col cols="12">
+          <v-icon size="64" color="primary">mdi-weight-lifter</v-icon>
+          <h2 class="text-h6 mt-2">
+            Select a workout to get started
+          </h2>
+        </v-col>
+
+        <v-col cols="12" md="6">
+          <v-btn
+            color="primary"
+            size="large"
+            block
+            class="mb-4"
+            @click="selectWorkout('individual')"
+          >
+            Individual Workout
+          </v-btn>
+
+          <v-btn
+            color="primary"
+            size="large"
+            block
+            @click="selectWorkout('team')"
+          >
+            Team Workout
+          </v-btn>
+        </v-col>
+      </v-row>
+    </template>
+
+    <template v-else-if="activeWorkout">
+      <v-card class="pa-4 mx-auto mt-4" max-width="600">
+        <v-card-title class="justify-center">
+          <span class="text-h6 font-weight-bold">
+            {{ activeWorkout === 'individual' ? 'Individual Workout' : 'Team Workout' }}
+          </span>
+        </v-card-title>
+
+        <div class="my-3 d-flex align-center justify-center">
+          <v-icon color="primary">mdi-timer</v-icon>
+          <span class="ml-2 text-h6">{{ formatTime(workoutTime) }}</span>
+
+          <v-btn
+            v-if="!timerStarted"
+            variant="tonal"
+            size="small"
+            class="ml-2"
+            color="success"
+            @click="startWorkoutTimer"
+          >
+            Start Workout
+          </v-btn>
+
+          <v-btn
+            v-else
+            variant="tonal"
+            size="small"
+            class="ml-2"
+            @click="toggleTimer"
+          >
+            {{ timerPaused ? 'Resume' : 'Pause' }}
+          </v-btn>
+        </div>
+
+        <v-divider class="my-2"></v-divider>
+
+        <v-list dense>
+          <v-list-item
+            v-for="(exercise, index) in currentExercises"
+            :key="index"
+          >
+            <v-list-item-content>
+              <v-list-item-title>{{ exercise.name }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ exercise.sets }} sets × {{ exercise.reps }} reps
+                <span v-if="exercise.weight"> @ {{ exercise.weight }} lbs</span>
+              </v-list-item-subtitle>
+            </v-list-item-content>
+
+            <v-list-item-action>
+              <v-checkbox
+                 color="primary"
+                 v-model="exercise.completed"
+                 @change="handleSetCompletion(exercise)"
+              ></v-checkbox>
+
+            </v-list-item-action>
+          </v-list-item>
+        </v-list>
+
+        <div v-if="restActive" class="my-4">
+          <v-icon color="amber">mdi-timer-sand</v-icon>
+          <span class="ml-2 text-body-1">
+            Rest Time: {{ formatTime(restTime) }}
+          </span>
+        </div>
+
+        <v-divider class="my-3"></v-divider>
+
+        <v-btn color="error" block @click="showEndModal = true">
+          End Workout
+        </v-btn>
+      </v-card>
+    </template>
+
+    <template v-else-if="allWorkoutsCompleted">
+      <div class="text-center mt-10">
+        <v-icon size="64" color="success">mdi-check-circle</v-icon>
+        <h3 class="text-h6 mt-3 font-weight-medium">
+          All workouts completed!
+        </h3>
+      </div>
+    </template>
+
+    <v-dialog v-model="showEndModal" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">End Workout</v-card-title>
+        <v-card-text>
+          Do you really want to end the workout before it is completed?
+        </v-card-text>
+        <v-card-actions>
+          <v-btn color="primary" text @click="showEndModal = false">
+            No
+          </v-btn>
+          <v-btn color="error" text @click="confirmEndWorkout">
+            Yes
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
+</template>
+
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import Utils from "../config/utils";
 
 const router = useRouter();
 
-const user = ref(null);
-const selectedPlan = ref(null);
-const selectedPlanType = ref(null);
-const selectedView = ref("workout");
-const exercises = ref([]);
-const timer = ref(0);
-const isRunning = ref(false);
-let timerInterval = null;
+const workouts = {
+  individual: [
+    { name: "Bench Press", sets: 3, reps: 10, weight: 135, completed: false },
+    { name: "Squat", sets: 4, reps: 8, weight: 185, completed: false },
+  ],
+  team: [
+    { name: "Rowing", sets: 3, reps: 500, completed: false },
+    { name: "Push Ups", sets: 3, reps: 20, completed: false },
+  ],
+};
 
-const workoutPlans = ref({
-  team: [],
-  individual: [],
-});
+const activeWorkout = ref(null);
+const completedWorkouts = ref([]);
+const allWorkoutsCompleted = ref(false);
+const currentExercises = ref([]);
 
-const fullName = computed(() => {
-  if (!user.value) return "";
-  const fName = user.value.fName ?? "";
-  const lName = user.value.lName ?? "";
-  return `${fName} ${lName}`.trim();
-});
+const workoutTime = ref(0);
+const restTime = ref(0);
+const restActive = ref(false);
+const timerStarted = ref(false);
+const timerPaused = ref(false);
 
-function loadWorkoutPlans() {
-  workoutPlans.value.team = [
-    { id: "t1", name: "Team Strength Circuit", description: "High intensity team workout" },
-    { id: "t2", name: "Team Cardio Challenge", description: "Endurance cardio exercises for team" },
-    { id: "t3", name: "Endurance Relay", description: "Relay-based team endurance training" },
-  ];
+const showEndModal = ref(false);
+let workoutInterval = null;
+let restInterval = null;
 
-  workoutPlans.value.individual = [
-    { id: "i1", name: "Full Body Blast", description: "Full body individual routine" },
-    { id: "i2", name: "Leg Day Routine", description: "Lower body focused individual workout" },
-    { id: "i3", name: "Core Strength Builder", description: "Individual core and abs workout" },
-  ];
+function selectWorkout(type) {
+  activeWorkout.value = type;
+  currentExercises.value = workouts[type].map((ex) => ({ ...ex }));
+  timerStarted.value = false;
+  workoutTime.value = 0;
 }
 
-function loadExercises(planId) {
-  const data = {
-    t1: [
-      { id: 1, name: "Burpees", completed: false },
-      { id: 2, name: "Mountain Climbers", completed: false },
-      { id: 3, name: "High Knees", completed: false },
-    ],
-    t2: [
-      { id: 4, name: "Jump Rope", completed: false },
-      { id: 5, name: "Sprints", completed: false },
-      { id: 6, name: "Cooldown Jog", completed: false },
-    ],
-    t3: [
-      { id: 7, name: "Lateral Hops", completed: false },
-      { id: 8, name: "Row Machine", completed: false },
-      { id: 9, name: "Team Plank Hold", completed: false },
-    ],
-    i1: [
-      { id: 10, name: "Push-ups", completed: false },
-      { id: 11, name: "Squats", completed: false },
-      { id: 12, name: "Plank", completed: false },
-    ],
-    i2: [
-      { id: 13, name: "Lunges", completed: false },
-      { id: 14, name: "Leg Press", completed: false },
-      { id: 15, name: "Calf Raises", completed: false },
-    ],
-    i3: [
-      { id: 16, name: "Crunches", completed: false },
-      { id: 17, name: "Leg Raises", completed: false },
-      { id: 18, name: "Russian Twists", completed: false },
-    ],
-  };
-
-  exercises.value = data[planId] || [];
-  selectedPlan.value =
-    workoutPlans.value.team.find((p) => p.id === planId) ||
-    workoutPlans.value.individual.find((p) => p.id === planId);
-
-  selectedPlanType.value = workoutPlans.value.team.some((p) => p.id === planId)
-    ? "team"
-    : "individual";
-
-  selectedView.value = "workout";
-  resetWorkout();
-}
-
-function selectStatistics() {
-  selectedView.value = "statistics";
-  router.push({ name: "AthleteStatistics" });
-}
-
-function toggleExerciseCompletion(exercise) {
-  exercise.completed = !exercise.completed;
-}
-
-function startTimer() {
-  if (timer.value > 0) return;
-  isRunning.value = true;
-  timerInterval = setInterval(() => {
-    timer.value++;
+function startWorkoutTimer() {
+  clearInterval(workoutInterval);
+  workoutTime.value = 0;
+  timerStarted.value = true;
+  timerPaused.value = false;
+  workoutInterval = setInterval(() => {
+    if (!timerPaused.value) workoutTime.value++;
   }, 1000);
 }
 
-function pauseTimer() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-  isRunning.value = false;
+function toggleTimer() {
+  if (timerPaused.value && restActive.value) {
+    clearInterval(restInterval);
+    restActive.value = false;
+  }
+
+  timerPaused.value = !timerPaused.value;
 }
 
-function resumeTimer() {
-  if (isRunning.value) return;
-  isRunning.value = true;
-  timerInterval = setInterval(() => {
-    timer.value++;
+function handleSetCompletion(exercise) {
+  if (exercise.completed) {
+    if (workoutInterval && !timerPaused.value) {
+      timerPaused.value = true;
+    }
+
+    startRestTimer();
+  }
+
+  const allCompleted = currentExercises.value.every((ex) => ex.completed);
+  if (allCompleted) {
+    completeWorkout();
+  }
+}
+
+
+function startRestTimer() {
+  clearInterval(restInterval);
+
+  restActive.value = true;
+  restTime.value = 60;
+
+  restInterval = setInterval(() => {
+    if (restTime.value > 0) {
+      restTime.value--;
+    } else {
+      clearInterval(restInterval);
+      restActive.value = false;
+      timerPaused.value = false;
+    }
   }, 1000);
-}
-
-function cancelWorkout() {
-  resetWorkout();
-  selectedPlan.value = null;
-}
-
-function stopTimer() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-  isRunning.value = false;
-}
-
-function completeWorkout() {
-  stopTimer();
-  const workoutData = {
-    athlete: fullName.value,
-    plan: selectedPlan.value?.name,
-    timeElapsed: timer.value,
-    exercises: exercises.value,
-    completedAt: new Date().toISOString(),
-  };
-  console.log("Workout complete:", workoutData);
-  resetWorkout();
-}
-
-function resetWorkout() {
-  stopTimer();
-  timer.value = 0;
-  exercises.value.forEach((e) => (e.completed = false));
 }
 
 function formatTime(seconds) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  const m = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
 }
 
-onMounted(() => {
-  user.value = Utils.getStore("user");
-  loadWorkoutPlans();
+function confirmEndWorkout() {
+  showEndModal.value = false;
+  endWorkout();
+}
+
+function endWorkout() {
+  clearInterval(workoutInterval);
+  clearInterval(restInterval);
+  restActive.value = false;
+  workoutTime.value = 0;
+  timerStarted.value = false;
+
+  if (activeWorkout.value && !completedWorkouts.value.includes(activeWorkout.value)) {
+    completedWorkouts.value.push(activeWorkout.value);
+  }
+
+  if (completedWorkouts.value.length < 2) {
+    const next =
+      activeWorkout.value === "individual" ? "team" : "individual";
+    activeWorkout.value = null;
+    setTimeout(() => selectWorkout(next), 1500);
+  } else {
+    allWorkoutsCompleted.value = true;
+    activeWorkout.value = null;
+    setTimeout(() => router.push({ name: "athlete-homepage" }), 3000);
+  }
+}
+
+function completeWorkout() {
+  endWorkout();
+}
+
+onUnmounted(() => {
+  clearInterval(workoutInterval);
+  clearInterval(restInterval);
 });
 </script>
 
-<template>
-  <v-container fluid class="pa-6">
-    <v-row align="stretch" justify="center" no-gutters>
-
-      <v-col cols="12" lg="3" class="pr-lg-4">
-        <v-card class="d-flex flex-column">
-          <v-card-text class="flex-grow-1 overflow-y-auto pr-2">
-            <v-list dense nav>
-            
-              <v-list-item>
-                <v-list-item-title class="font-weight-medium text-subtitle-1">
-                  Workout Plans
-                </v-list-item-title>
-              </v-list-item>
-
-              <v-expansion-panels multiple elevation="0" flat>
-                <v-expansion-panel>
-                  <v-expansion-panel-title class="font-weight-medium">
-                    Team Workouts
-                  </v-expansion-panel-title>
-                  <v-expansion-panel-text class="px-0">
-                    <v-list dense nav>
-                      <v-list-item
-                        v-for="plan in workoutPlans.team"
-                        :key="plan.id"
-                        :active="selectedPlan?.id === plan.id && selectedView === 'workout'"
-                        rounded
-                        @click="loadExercises(plan.id)"
-                      >
-                        <v-list-item-title>{{ plan.name }}</v-list-item-title>
-                      </v-list-item>
-                    </v-list>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-
-                <v-expansion-panel>
-                  <v-expansion-panel-title class="font-weight-medium">
-                    Individual Workouts
-                  </v-expansion-panel-title>
-                  <v-expansion-panel-text class="px-0">
-                    <v-list dense nav>
-                      <v-list-item
-                        v-for="plan in workoutPlans.individual"
-                        :key="plan.id"
-                        :active="selectedPlan?.id === plan.id && selectedView === 'workout'"
-                        rounded
-                        @click="loadExercises(plan.id)"
-                      >
-                        <v-list-item-title>{{ plan.name }}</v-list-item-title>
-                      </v-list-item>
-                    </v-list>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-              </v-expansion-panels>
-
-              <v-divider class="my-4" />
-
-              <v-list-item
-                :active="selectedView === 'statistics'"
-                rounded
-                @click="selectStatistics"
-              >
-                <v-list-item-title class="font-weight-medium text-subtitle-1">
-                  Statistics
-                </v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-card-text>
-        </v-card>
-      </v-col>
-
-      <v-col cols="12" lg="6" class="px-lg-4 mt-6 mt-lg-0">
-        <v-card v-if="selectedPlan" class="h-100">
-          <v-card-title class="d-flex flex-column align-start">
-            <span class="text-h5">{{ selectedPlan.name }}</span>
-            <span class="text-subtitle-2 text-medium-emphasis">
-              {{ selectedPlan.description || "No description provided." }}
-            </span>
-          </v-card-title>
-          <v-divider />
-
-          <v-card-text>
-            <div class="d-flex align-center justify-space-between mb-4">
-              <div class="text-h6 d-flex align-center">
-                <v-icon class="mr-2" color="#58f707">mdi-timer-outline</v-icon>
-                {{ formatTime(timer) }}
-              </div>
-
-              <div>
-                <v-btn color="primary" @click="startTimer" :disabled="timer > 0">
-                  Start
-                </v-btn>
-
-                <v-btn color="warning" class="ml-2" v-if="isRunning" @click="pauseTimer">
-                  Pause
-                </v-btn>
-
-                <v-btn color="primary" class="ml-2" v-else-if="timer > 0" @click="resumeTimer">
-                  Resume
-                </v-btn>
-
-                <v-btn color="success" class="ml-2" @click="completeWorkout" :disabled="timer === 0">
-                  Complete
-                </v-btn>
-
-                <v-btn color="error" class="ml-2" @click="cancelWorkout" :disabled="timer === 0">
-                  Cancel
-                </v-btn>
-              </div>
-            </div>
-
-            <v-list v-if="exercises.length">
-              <v-list-item
-                v-for="exercise in exercises"
-                :key="exercise.id"
-                @click="toggleExerciseCompletion(exercise)"
-              >
-                <v-list-item-title
-                  :class="exercise.completed ? 'text-decoration-line-through text-grey' : ''"
-                >
-                  {{ exercise.name }}
-                </v-list-item-title>
-
-                <v-list-item-action>
-                  <v-checkbox
-                    v-model="exercise.completed"
-                    @click.stop="toggleExerciseCompletion(exercise)"
-                  />
-                </v-list-item-action>
-              </v-list-item>
-            </v-list>
-
-            <p v-else class="mt-4 text-body-2">
-              Select a plan to view your exercises
-            </p>
-          </v-card-text>
-        </v-card>
-
-        <div v-else class="text-center py-12">
-          <v-icon size="56" color="primary">mdi-weight-lifter</v-icon>
-          <p class="text-body-1 mt-3">
-            Select a workout plan from the sidebar to get started
-          </p>
-        </div>
-      </v-col>
-      <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0"></v-col>
-    </v-row>
-  </v-container>
-</template>
+<style scoped>
+.v-btn {
+  border-radius: 12px;
+}
+.v-list-item {
+  align-items: center;
+}
+</style>
