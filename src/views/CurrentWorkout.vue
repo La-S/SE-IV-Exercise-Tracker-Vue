@@ -1,12 +1,10 @@
 <template>
   <v-container class="pa-4 text-center">
     <template v-if="!activeWorkout && !allWorkoutsCompleted">
-      <v-row justify="center" align="center" class="text-center mt-6">
+      <v-row justify="center" align="center" class="mt-6">
         <v-col cols="12">
           <v-icon size="64" color="primary">mdi-weight-lifter</v-icon>
-          <h2 class="text-h6 mt-2">
-            Select a workout to get started
-          </h2>
+          <h2 class="text-h6 mt-2">Select a workout to get started</h2>
         </v-col>
 
         <v-col cols="12" md="6">
@@ -75,10 +73,33 @@
           >
             <v-list-item-content>
               <v-list-item-title>{{ exercise.name }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ exercise.sets }} sets × {{ exercise.reps }} reps
-                <span v-if="exercise.weight"> @ {{ exercise.weight }} lbs</span>
-              </v-list-item-subtitle>
+
+              <template v-if="exercise.type === 'cardio'">
+                <v-list-item-subtitle>
+                  Goal: {{ exercise.goalMiles }} miles @ {{ exercise.goalPace }} min/mile
+                </v-list-item-subtitle>
+                <v-text-field
+                  v-model="exercise.mileTimes"
+                  label="Enter time per mile"
+                  placeholder="e.g. 8:30, 8:45, 8:40"
+                  dense
+                  hide-details
+                ></v-text-field>
+                <v-text-field
+                  v-model="exercise.actualMiles"
+                  label="Actual miles completed"
+                  type="number"
+                  dense
+                  hide-details
+                ></v-text-field>
+              </template>
+
+              <template v-else>
+                <v-list-item-subtitle>
+                  {{ exercise.sets }} sets × {{ exercise.reps }} reps
+                  <span v-if="exercise.weight"> @ {{ exercise.weight }} lbs</span>
+                </v-list-item-subtitle>
+              </template>
             </v-list-item-content>
 
             <v-list-item-action>
@@ -87,7 +108,6 @@
                  v-model="exercise.completed"
                  @change="handleSetCompletion(exercise)"
               ></v-checkbox>
-
             </v-list-item-action>
           </v-list-item>
         </v-list>
@@ -109,10 +129,8 @@
 
     <template v-else-if="allWorkoutsCompleted">
       <div class="text-center mt-10">
-        <v-icon size="64" color="success">mdi-check-circle</v-icon>
-        <h3 class="text-h6 mt-3 font-weight-medium">
-          All workouts completed!
-        </h3>
+        <v-icon size="64" color="primary">mdi-check-circle</v-icon>
+        <h3 class="text-h6 mt-3 font-weight-medium">All workouts completed</h3>
       </div>
     </template>
 
@@ -123,12 +141,8 @@
           Do you really want to end the workout before it is completed?
         </v-card-text>
         <v-card-actions>
-          <v-btn color="primary" text @click="showEndModal = false">
-            No
-          </v-btn>
-          <v-btn color="error" text @click="confirmEndWorkout">
-            Yes
-          </v-btn>
+          <v-btn color="primary" text @click="showEndModal = false">No</v-btn>
+          <v-btn color="error" text @click="confirmEndWorkout">Yes</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -143,12 +157,14 @@ const router = useRouter();
 
 const workouts = {
   individual: [
-    { name: "Bench Press", sets: 3, reps: 10, weight: 135, completed: false },
-    { name: "Squat", sets: 4, reps: 8, weight: 185, completed: false },
+    { name: "Bench Press", sets: 3, reps: 10, weight: 135, type: "weight", completed: false },
+    { name: "Squat", sets: 4, reps: 8, weight: 185, type: "weight", completed: false },
+    { name: "5K Run", goalMiles: 3.1, goalPace: "8:30", type: "cardio", mileTimes: "", actualMiles: 0, completed: false },
   ],
   team: [
-    { name: "Rowing", sets: 3, reps: 500, completed: false },
-    { name: "Push Ups", sets: 3, reps: 20, completed: false },
+    { name: "Rowing", sets: 3, reps: 500, type: "weight", completed: false },
+    { name: "Push Ups", sets: 3, reps: 20, type: "weight", completed: false },
+    { name: "2 Mile Run", goalMiles: 2, goalPace: "9:00", type: "cardio", mileTimes: "", actualMiles: 0, completed: false },
   ],
 };
 
