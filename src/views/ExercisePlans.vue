@@ -1,5 +1,6 @@
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import apiClient from "../services/services.js";
 
 const teamPlans = ref([
   {
@@ -23,24 +24,60 @@ const individualPlans = ref([
   },
 ]);
 
-const availableExercises = ref([
-  {
-    id: 501,
-    name: "Back Squat",
-    type: "Strength",
-    muscleGroup: "Quad",
-    restTimer: 120,
-    notes: "3 warmup sets before working weight.",
-  },
-  {
-    id: 502,
-    name: "Sprints",
-    type: "Cardio",
-    muscleGroup: "Cardio",
-    restTimer: 60,
-    notes: "5 mile run",
-  },
-]);
+const availableExercises = ref([]);
+const exercisesLoading = ref(false);
+const exerciseLoadError = ref(null);
+const exerciseMutationError = ref(null);
+const exerciseMutationPending = ref(false);
+
+const formatLabel = (value) => {
+  if (!value && value !== 0) return "";
+  const label = String(value);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+const toBackendPayload = (exercise) => {
+  const typeValue = (exercise.type || "").toString().trim().toLowerCase();
+  const muscleValue = (exercise.muscleGroup || "").toString().trim().toLowerCase();
+  return {
+    name: exercise.name.trim(),
+    type: typeValue || "other",
+    muscle_group: muscleValue || null,
+  };
+};
+
+const mapTemplateToExercise = (template, extras = {}) => ({
+  id: template.id,
+  name: template.name ?? "Unnamed Exercise",
+  type: formatLabel(template.type ?? "other"),
+  muscleGroup: template.muscle_group ? formatLabel(template.muscle_group) : "",
+  restTimer: extras.restTimer ?? 0,
+  notes: extras.notes ?? "",
+});
+
+const loadAvailableExercises = async () => {
+  exercisesLoading.value = true;
+  exerciseLoadError.value = null;
+  try {
+    const response = await apiClient.get("exerciseTemplate");
+    const data = response.data;
+    if (Array.isArray(data)) {
+      availableExercises.value = data.map((template) => mapTemplateToExercise(template));
+    } else {
+      availableExercises.value = [];
+    }
+  } catch (error) {
+    console.error("Failed to load exercise templates", error);
+    exerciseLoadError.value =
+      "Unable to load available exercises. Please try again later.";
+  } finally {
+    exercisesLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadAvailableExercises();
+});
 
 const planSections = computed(() => [
   { label: "Team Plans", type: "team", plans: teamPlans.value },
@@ -234,23 +271,15 @@ const newExercise = reactive({
 
 const normalizeExerciseFields = (exercise) => {
   const restTimerValue = Number(exercise.restTimer);
+  const typeValue = exercise.type.trim().toLowerCase();
+  const muscleValue = exercise.muscleGroup.trim().toLowerCase();
   return {
     name: exercise.name.trim(),
-    type: exercise.type.trim() || "Other",
-    muscleGroup: exercise.muscleGroup.trim(),
+    type: formatLabel(typeValue || "other"),
+    muscleGroup: muscleValue ? formatLabel(muscleValue) : "",
     restTimer: Number.isFinite(restTimerValue) ? restTimerValue : 0,
     notes: exercise.notes.trim(),
   };
-};
-
-const appendExercise = (exercise) => {
-  const createdExercise = {
-    id: Date.now(),
-    ...normalizeExerciseFields(exercise),
-  };
-
-  availableExercises.value.push(createdExercise);
-  return createdExercise;
 };
 
 const updateExerciseAssignments = function(exerciseId, updates) {
@@ -274,13 +303,7 @@ const removeExerciseAssignments = function(exerciseId) {
   });
 };
 
-const createExercise = function() {
-  if(!newExercise.name.trim()) {
-    return;
-  }
-
-  appendExercise(newExercise);
-
+const resetNewExercise = () => {
   Object.assign(newExercise, {
     name: "",
     type: "",
@@ -288,6 +311,34 @@ const createExercise = function() {
     restTimer: 90,
     notes: "",
   });
+};
+
+const createExercise = async function() {
+  if(!newExercise.name.trim() || exerciseMutationPending.value) {
+    return;
+  }
+
+  const normalized = normalizeExerciseFields(newExercise);
+  const payload = toBackendPayload(normalized);
+
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    const response = await apiClient.post("exerciseTemplate", payload);
+    const createdExercise = mapTemplateToExercise(response.data, {
+      restTimer: normalized.restTimer,
+      notes: normalized.notes,
+    });
+    availableExercises.value.push(createdExercise);
+    resetNewExercise();
+  } catch (error) {
+    console.error("Failed to create exercise template", error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
 };
 
 const addExerciseDialog = ref(false);
@@ -328,10 +379,14 @@ watch(addExerciseDialog, function(isOpen) {
       resetInlineExercise();
       exerciseSearch.value = "";
       exerciseFocusFilter.value = "all";
+      exerciseMutationError.value = null;
+      exerciseMutationPending.value = false;
     }
   });
 
 const toggleInlineExerciseForm = () => {
+  exerciseMutationError.value = null;
+  exerciseMutationPending.value = false;
   if (showInlineExerciseForm.value) {
     showInlineExerciseForm.value = false;
     resetInlineExercise();
@@ -340,16 +395,35 @@ const toggleInlineExerciseForm = () => {
   }
 };
 
-const createInlineExercise = function() {
-  if(!inlineExercise.name.trim()) {
+const createInlineExercise = async function() {
+  if(!inlineExercise.name.trim() || exerciseMutationPending.value) {
     return;
   }
 
-  const createdExercise=appendExercise(inlineExercise);
-  toggleInlineExerciseForm();
-  selectedExerciseIds.value=Array.from(
-    new Set([selectedExerciseIds.value, createdExercise.id])
-  );
+  const normalized = normalizeExerciseFields(inlineExercise);
+  const payload = toBackendPayload(normalized);
+
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    const response = await apiClient.post("exerciseTemplate", payload);
+    const createdExercise = mapTemplateToExercise(response.data, {
+      restTimer: normalized.restTimer,
+      notes: normalized.notes,
+    });
+    availableExercises.value.push(createdExercise);
+    toggleInlineExerciseForm();
+    selectedExerciseIds.value = Array.from(
+      new Set([...selectedExerciseIds.value, createdExercise.id])
+    );
+  } catch (error) {
+    console.error("Failed to create exercise template", error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
 };
 
 const sortedExercises = computed(function() {
@@ -434,6 +508,8 @@ const resetEditExercise = function() {
 };
 
 const openLibraryExerciseEditor = function(exercise) {
+  exerciseMutationError.value = null;
+  exerciseMutationPending.value = false;
   editExercise.id = exercise.id;
   editExercise.source = "library";
   editExercise.planType = null;
@@ -447,6 +523,8 @@ const openLibraryExerciseEditor = function(exercise) {
 };
 
 const openPlanExerciseEditor = function(planType, planId, exercise) {
+  exerciseMutationError.value = null;
+  exerciseMutationPending.value = false;
   editExercise.id = exercise.id;
   editExercise.source = "plan";
   editExercise.planType = planType;
@@ -484,20 +562,46 @@ const applyExerciseUpdates = function(targetId, updates, options={ source: "libr
   }
 };
 
-const updateExercise = function() {
+const updateExercise = async function() {
   if(!editExercise.id||!editExercise.name.trim()) {
     return;
   }
 
   const updates=normalizeExerciseFields(editExercise);
-  applyExerciseUpdates(editExercise.id, updates, {
-    source: editExercise.source,
-    planType: editExercise.planType,
-    planId: editExercise.planId,
-  });
 
-  editExerciseDialog.value = false;
-  resetEditExercise();
+  if(editExercise.source === "library") {
+    if (exerciseMutationPending.value) {
+      return;
+    }
+    const payload = toBackendPayload(updates);
+    try {
+      exerciseMutationError.value = null;
+      exerciseMutationPending.value = true;
+      await apiClient.put(`exerciseTemplate/${editExercise.id}`, payload);
+      applyExerciseUpdates(editExercise.id, updates, {
+        source: editExercise.source,
+        planType: editExercise.planType,
+        planId: editExercise.planId,
+      });
+      editExerciseDialog.value = false;
+      resetEditExercise();
+    } catch (error) {
+      console.error(`Failed to update exercise template ${editExercise.id}`, error);
+      exerciseMutationError.value =
+        error?.response?.data?.message ||
+        "Unable to update the exercise. Please adjust the values and try again.";
+    } finally {
+      exerciseMutationPending.value = false;
+    }
+  } else {
+    applyExerciseUpdates(editExercise.id, updates, {
+      source: editExercise.source,
+      planType: editExercise.planType,
+      planId: editExercise.planId,
+    });
+    editExerciseDialog.value = false;
+    resetEditExercise();
+  }
 };
 
 const deleteAvailableExercise = function(exerciseId) {
@@ -526,6 +630,8 @@ const confirmAvailableExerciseDeletion = function(exercise) {
 watch(editExerciseDialog, (isOpen) => {
   if (!isOpen) {
     resetEditExercise();
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = false;
   }
 });
 </script>
@@ -764,7 +870,13 @@ watch(editExerciseDialog, (isOpen) => {
                   <v-btn variant="text" @click="toggleInlineExerciseForm">
                     Cancel
                   </v-btn>
-                  <v-btn type="submit" color="primary" prepend-icon="mdi-content-save">
+                  <v-btn
+                    type="submit"
+                    color="primary"
+                    prepend-icon="mdi-content-save"
+                    :loading="exerciseMutationPending"
+                    :disabled="exerciseMutationPending"
+                  >
                     Save Exercise
                   </v-btn>
                 </div>
@@ -792,8 +904,20 @@ watch(editExerciseDialog, (isOpen) => {
               />
             </v-col>
           </v-row>
+          <v-alert
+            v-if="exerciseLoadError"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            class="mb-4"
+          >
+            {{ exerciseLoadError }}
+          </v-alert>
+          <div v-else-if="exercisesLoading" class="d-flex justify-center py-6">
+            <v-progress-circular indeterminate color="primary" />
+          </div>
           <v-list
-            v-if="sortedExercises.length"
+            v-else-if="sortedExercises.length"
             density="comfortable"
             lines="two"
             style="max-height: 360px; overflow-y: auto;"
@@ -849,6 +973,16 @@ watch(editExerciseDialog, (isOpen) => {
             No results found for this muscle focus.
           </v-alert>
 
+          <v-alert
+            v-if="exerciseMutationError"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            class="mt-4"
+          >
+            {{ exerciseMutationError }}
+          </v-alert>
+
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -884,6 +1018,14 @@ watch(editExerciseDialog, (isOpen) => {
               class="mb-4"
             >
               Changes apply only within this plan.
+            </v-alert>
+            <v-alert
+              v-if="exerciseMutationError && editExercise.source === 'library'"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
+              {{ exerciseMutationError }}
             </v-alert>
             <v-text-field
               v-model="editExercise.name"
@@ -921,7 +1063,12 @@ watch(editExerciseDialog, (isOpen) => {
               <v-btn variant="text" @click="editExerciseDialog = false">
                 Cancel
               </v-btn>
-              <v-btn type="submit" color="primary" :disabled="!editExercise.name">
+              <v-btn
+                type="submit"
+                color="primary"
+                :disabled="!editExercise.name || exerciseMutationPending"
+                :loading="exerciseMutationPending"
+              >
                 Save
               </v-btn>
             </v-card-actions>
