@@ -22,6 +22,7 @@ const athleteMenuItems = [
 const coachMenuItems = [
   { title: "Dashboard", route: "dashboard" },
   { title: "Exercise Plans", route: "exercise-plans" },
+  { title: "Teams", route: "teams" },
 ];
 
 const isAthletePage = computed(() =>
