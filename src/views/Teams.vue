@@ -322,6 +322,15 @@ const removeExerciseFromPlan = (exerciseId) => {
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
                       <v-btn
+                        color="primary"
+                        variant="text"
+                        @click="removeExerciseFromPlan(athlete.id)"
+                      >
+                        Contact Athlete
+                      </v-btn>
+                      <br/>
+                      <br/>
+                      <v-btn
                         color="error"
                         variant="text"
                         @click="removeExerciseFromPlan(athlete.id)"
