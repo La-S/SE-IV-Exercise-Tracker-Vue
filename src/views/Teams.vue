@@ -5,7 +5,10 @@ const yourTeams = ref([
   {
     id: 1,
     name: "OC Cross Country",
-    athletes: [501]
+    athletes: [{
+      id: 501,
+      name: "Lance Skinner",
+    }]
   },
 ]);
 
@@ -38,12 +41,10 @@ const teamSections = computed(() => [
 const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
 
 const teamSelected = (type, planId) => {
-  console.log("teamseelected")
   if (!selectedTeamKey.id) {
     selectedTeam.value = null;
   }
   const collection = type === "team" ? yourTeams.value : otherTeams.value;
-  console.log(collection)
   selectedTeamKey.id = planId;
   selectedTeamKey.type = type;
   selectedTeam.value = collection.find((plan) => planId === selectedTeamKey.id) ?? null;
@@ -54,10 +55,8 @@ watch(
   () => {
     if (selectedTeamKey.id) {
       if (selectedTeam.value === null) {
-        console.log("setting selected Team!!!")
         teamSelected(selectedTeamKey.id);
       }
-      console.log("hey"); 
       return
     };
     const defaultPlan =
@@ -135,14 +134,13 @@ const appendAthlete = (exercise) => {
   return createdAthlete;
 };
 
-function logStuff() { // debug stuff
-  console.log("stuff"); 
-  // console.log(selectedTeam.value.athletes.indexOf(501) ?? 'blah')
-  // // <!-- v-model="isSelected" -->
-  // console.log(selectedTeam.value?.athletes?.indexOf(501) !== -1)
-  console.log(selectedTeam.value.athletes?.indexOf(501))
-   console.log(selectedTeam.value.athletes)
-  //  console.log(selectedTeam.value.athletes)
+function isAthleteOnTeam(athleteId) {
+  let isOnTeam = !!getCopyOfAthletesForTeam().find((a) => a.id === athleteId);
+  return isOnTeam;
+}
+
+function getCopyOfAthletesForTeam() {
+  return JSON.parse(JSON.stringify(selectedTeam.value.athletes));
 }
 
 const createAthlete = () => {
@@ -307,16 +305,6 @@ const removeExerciseFromPlan = (exerciseId) => {
                   >
                     Add Athlete
                   </v-btn>
-                  <h3 class="text-subtitle-1 font-weight-medium mb-0">DEBUG STUFF:</h3>
-                  <v-btn
-                    color="primary"
-                    variant="tonal"
-                    size="small"
-                    prepend-icon="mdi-plus"
-                    @click="logStuff()"
-                  >
-                    TEST
-                  </v-btn>
                 </div>
                 <v-alert v-if="!selectedTeam.athletes?.length" variant="tonal" type="info">
                   No athletes on the team. Use the Add Athlete button to get started.
@@ -434,14 +422,14 @@ const removeExerciseFromPlan = (exerciseId) => {
             </div>
           </v-expand-transition>
           <v-list
-            v-if="availableAthletes.length"
+            v-if="selectedTeam.athletes.length < availableAthletes.length"
             density="comfortable"
             lines="two"
             style="max-height: 360px; overflow-y: auto;"
           >
             <v-item-group v-model="selectedAthleteIds" multiple>
               <template v-for="athlete in availableAthletes" :key="athlete.id">
-                <v-item :value="athlete.id" v-if="selectedTeam.athletes.indexOf(athlete.id) !== undefined" v-slot="{ isSelected, toggle }">
+                <v-item :value="athlete.id" v-if="!isAthleteOnTeam(athlete.id)" v-slot="{ isSelected, toggle }">
                   <v-list-item @click="toggle" class="rounded-lg">
                     <template #prepend>
                       <v-checkbox
