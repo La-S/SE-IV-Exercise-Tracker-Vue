@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createMemoryHistory, createRouter } from "vue-router";
 
 import Login from "./views/Login.vue";
 
@@ -6,9 +6,11 @@ import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
 import Utils from "./config/utils";
 import Teams from "./views/Teams.vue";
+import AthleteHomePage from "./views/AthleteHomePage.vue";
+import CurrentWorkout from "./views/CurrentWorkout.vue";
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createMemoryHistory(),
   routes: [
     {
       path: "/",
@@ -33,6 +35,16 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: Login,
+    },
+    {
+      path: "/athlete-homepage",
+      name: "athlete-homepage",
+      component: AthleteHomePage,
+    },
+    {
+      path: "/current-workout",
+      name: "current-workout",
+      component: CurrentWorkout,
     },
     {
       path: "/:pathMatch(.*)*",
