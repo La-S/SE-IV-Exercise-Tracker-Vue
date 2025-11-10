@@ -304,13 +304,11 @@ const addAthletesToTeam = async () => {
 
   const teamAthletes = selectedTeam.value.athletes;
   const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
-  const payload = {userIds: selectedAthleteIds.value}
 
   try {
     // exerciseMutationError.value = null;
     // exerciseMutationPending.value = true;
-    console.log(`team/${selectedTeam.value.id}/users`, selectedAthleteIds.value)
-    const response = await apiClient.post(`team/${selectedTeam.value.id}/users`, payload);
+    const response = await apiClient.post(`team/${selectedTeam.value.id}/users`, selectedAthleteIds.value);
     if (response.status != 200){
       throw Error("status not 200.")
     }
