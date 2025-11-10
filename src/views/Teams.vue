@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import apiClient from "../services/services";
 
 const yourTeams = ref([
   {
@@ -41,14 +42,42 @@ const teamSections = computed(() => [
 const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
 
 const teamSelected = (type, planId) => {
+  console.log("teamSelected", type, planId)
   if (!selectedTeamKey.id) {
     selectedTeam.value = null;
   }
   const collection = type === "team" ? yourTeams.value : otherTeams.value;
   selectedTeamKey.id = planId;
   selectedTeamKey.type = type;
-  selectedTeam.value = collection.find((plan) => planId === selectedTeamKey.id) ?? null;
+  selectedTeam.value = collection.find((plan) => plan.id === selectedTeamKey.id) ?? null;
+  console.log(selectedTeam.value)
 }
+
+const loadTeams = async () => {
+  // exercisesLoading.value = true;
+  // exerciseLoadError.value = null;
+  try {
+    console.log("getting some teams")
+    const response = await apiClient.get("team");
+    const data = response.data;
+    if (Array.isArray(data)) {
+      yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id} });
+    } else {
+      yourTeams.value = [];
+    }
+  } catch (error) {
+    // console.error("Failed to load exercise templates", error);
+    // exerciseLoadError.value =
+    //   "Unable to load available exercises. Please try again later.";
+  } finally {
+    // exercisesLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  console.log("load some teams")
+  loadTeams();
+});
 
 watch(
   () => [yourTeams.value.length, otherTeams.value.length],
@@ -73,41 +102,43 @@ watch(
   { immediate: true }
 );
 
-const newPlanDialog = ref(false);
-const newPlan = reactive({
+const newTeamDialog = ref(false);
+const newTeam = reactive({
   type: "team",
   name: "",
-  focusArea: "",
-  notes: "",
+  athletes: []
 });
 
-const resetNewPlan = () => {
-  newPlan.type = "team";
-  newPlan.name = "";
-  newPlan.focusArea = "";
-  newPlan.notes = "";
+const resetNewTeam = () => {
+  newTeam.type = "team";
 };
 
-const createPlan = () => {
-  if (!newPlan.name.trim()) {
+
+const createTeam = async function() {
+  if (!newTeam.name.trim()) {
     return;
   }
 
-  const targetCollection = newPlan.type === "team" ? yourTeams.value : otherTeams.value;
-  const plan = {
-    id: Date.now(),
-    name: newPlan.name.trim(),
-    focusArea: newPlan.focusArea.trim(),
-    notes: newPlan.notes.trim(),
-    exercises: [],
-  };
+  const payload = {"name": newTeam.name.trim()}
 
-  targetCollection.push(plan);
-  selectedTeamKey.type = newPlan.type;
-  selectedTeamKey.id = plan.id;
-
-  newPlanDialog.value = false;
-  resetNewPlan();
+  try {
+    // exerciseMutationError.value = null;
+    // exerciseMutationPending.value = true;
+    const response = await apiClient.post("team", payload);
+    const createdTeam = {
+      "id": response.data.id,
+      "name": response.data.name
+    }
+    yourTeams.value.push(createdTeam);
+    resetNewTeam();
+  } catch (error) {
+    // console.error("Failed to create exercise template", error);
+    // exerciseMutationError.value =
+    //   error?.response?.data?.message ||
+    //   "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    // exerciseMutationPending.value = false;
+  }
 };
 
 const newExercise = reactive({
@@ -244,7 +275,7 @@ const removeExerciseFromPlan = (exerciseId) => {
           <v-card-title class="d-flex align-center">
             Teams
             <v-spacer />
-            <v-btn icon variant="text" color="primary" @click="newPlanDialog = true">
+            <v-btn icon variant="text" color="primary" @click="newTeamDialog = true">
               <v-icon>mdi-plus</v-icon>
             </v-btn>
           </v-card-title>
@@ -257,16 +288,16 @@ const removeExerciseFromPlan = (exerciseId) => {
                 <v-subheader class="text-uppercase font-weight-medium">
                   {{ section.label }}
                 </v-subheader>
+                <v-alert v-if="section.plans.length === 0" variant="tonal" type="info">
+                  You don't have any teams. Use the + button to get started.
+                </v-alert>
                 <v-list-item
                   v-for="plan in section.plans"
                   :key="plan.id"
                   :active="selectedTeamKey.type === section.type && selectedTeamKey.id === plan.id"
                   rounded
                   @click="teamSelected(section.type, plan.id);"
-
                 >
-                  <!-- @click="selectedTeamKey.type = section.type; selectedTeamKey.id = plan.id;" -->
-
                   <v-list-item-title>{{ plan.name }}</v-list-item-title>
                 </v-list-item>
               </template>
@@ -347,7 +378,7 @@ const removeExerciseFromPlan = (exerciseId) => {
             <v-card-text class="text-center py-12">
               <v-icon size="56" class="mb-3" color="primary">mdi-view-dashboard-outline</v-icon>
               <p class="text-body-1">Create a plan to get started, or select one from the sidebar.</p>
-              <v-btn color="primary" class="mt-4" @click="newPlanDialog = true">
+              <v-btn color="primary" class="mt-4" @click="newTeamDialog = true">
                 New Plan
               </v-btn>
             </v-card-text>
@@ -471,6 +502,28 @@ const removeExerciseFromPlan = (exerciseId) => {
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="newTeamDialog" max-width="520">
+      <v-card>
+        <v-card-title>Create New Team</v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="createTeam">
+            <v-text-field
+              v-model="newTeam.name"
+              label="Team name"
+              prepend-inner-icon="mdi-file-document-edit"
+              required
+            />
+            <v-card-actions class="mt-2">
+              <v-spacer />
+              <v-btn variant="text" @click="newTeamDialog = false">Cancel</v-btn>
+              <v-btn type="submit" color="primary">Create</v-btn>
+            </v-card-actions>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
   </v-container>
 </template>
 
