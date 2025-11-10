@@ -2,16 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import apiClient from "../services/services";
 
-const yourTeams = ref([
-  {
-    id: 1,
-    name: "OC Cross Country",
-    athletes: [{
-      id: 501,
-      name: "Lance Skinner",
-    }]
-  },
-]);
+const yourTeams = ref([]);
 
 const otherTeams = ref([
   {
