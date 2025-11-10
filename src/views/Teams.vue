@@ -41,6 +41,68 @@ const teamSections = computed(() => [
 
 const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
 
+const getAthletesOnTeam = async () => { // todo all of these should be in a service file
+  console.log("getAthletesOnTeam")
+  if (!selectedTeam) return;
+
+  // const teamAthletes = selectedTeam.value.athletes;
+  // const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
+
+  try {
+    // exerciseMutationError.value = null;
+    // exerciseMutationPending.value = true;
+    const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
+    if (response.status != 200){
+      throw Error("status not 200.")
+    }
+    selectedTeam.value.athletes = []
+    response.data.forEach((athlete) =>{
+      selectedTeam.value.athletes.push({id: athlete.id, name: athlete.first_name})
+    })
+    console.log(selectedTeam.value.athletes)
+    // selectedAthleteIds.value = []
+    // addExerciseDialog.value = false;
+  } catch (error) {
+    // console.error("Failed to create exercise template", error);
+    // exerciseMutationError.value =
+    //   error?.response?.data?.message ||
+    //   "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    // exerciseMutationPending.value = false;
+  }
+};
+
+const getAllAthletes = async () => { // todo all of these should be in a service file
+  console.log("getAllAthletes")
+
+  // const teamAthletes = selectedTeam.value.athletes;
+  // const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
+
+  try {
+    // exerciseMutationError.value = null;
+    // exerciseMutationPending.value = true;
+    const response = await apiClient.get(`users`);
+    if (response.status != 200){
+      throw Error("status not 200.")
+    }
+    availableAthletes.value = []
+    response.data.forEach((athlete) =>{
+      availableAthletes.value.push({id: athlete.id, name: athlete.first_name})
+    })
+    console.log(availableAthletes.value)
+
+    // selectedAthleteIds.value = []
+    // addExerciseDialog.value = false;
+  } catch (error) {
+    // console.error("Failed to create exercise template", error);
+    // exerciseMutationError.value =
+    //   error?.response?.data?.message ||
+    //   "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    // exerciseMutationPending.value = false;
+  }
+};
+
 const teamSelected = (type, planId) => {
   console.log("teamSelected", type, planId)
   if (!selectedTeamKey.id) {
@@ -51,6 +113,9 @@ const teamSelected = (type, planId) => {
   selectedTeamKey.type = type;
   selectedTeam.value = collection.find((plan) => plan.id === selectedTeamKey.id) ?? null;
   console.log(selectedTeam.value)
+    console.log("getAthletesOnTeam")
+
+  getAthletesOnTeam()
 }
 
 const loadTeams = async () => {
@@ -61,7 +126,7 @@ const loadTeams = async () => {
     const response = await apiClient.get("team");
     const data = response.data;
     if (Array.isArray(data)) {
-      yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id} });
+      yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
     } else {
       yourTeams.value = [];
     }
@@ -77,6 +142,7 @@ const loadTeams = async () => {
 onMounted(() => {
   console.log("load some teams")
   loadTeams();
+  getAllAthletes();
 });
 
 watch(
@@ -127,7 +193,8 @@ const createTeam = async function() {
     const response = await apiClient.post("team", payload);
     const createdTeam = {
       "id": response.data.id,
-      "name": response.data.name
+      "name": response.data.name,
+      "athletes": []
     }
     yourTeams.value.push(createdTeam);
     resetNewTeam();
@@ -241,23 +308,43 @@ const createInlineExercise = () => {
   );
 };
 
-const addAthletesToTeam = () => {
+const addAthletesToTeam = async () => {
   if (!selectedTeam || !selectedAthleteIds.value.length) return;
 
   const teamAthletes = selectedTeam.value.athletes;
   const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
+  const payload = {userIds: selectedAthleteIds.value}
 
-  selectedAthleteIds.value.forEach((exerciseId) => {
-    const athlete = availableAthletes.value.find((item) => item.id === exerciseId);
-    if (athlete && !existingAthletes.has(athlete.id)) {
-      teamAthletes.push(JSON.parse(JSON.stringify(athlete)));
-      existingAthletes.add(athlete.id);
-      // todo push to backend too...
+  try {
+    // exerciseMutationError.value = null;
+    // exerciseMutationPending.value = true;
+    console.log(`team/${selectedTeam.value.id}/users`, selectedAthleteIds.value)
+    const response = await apiClient.post(`team/${selectedTeam.value.id}/users`, payload);
+    if (response.status != 200){
+      throw Error("status not 200.")
     }
-  });
+    console.log(response)
+    // add the athletes to the list.
+    selectedAthleteIds.value.forEach((exerciseId) => {
+      const athlete = availableAthletes.value.find((item) => item.id === exerciseId);
+      if (athlete && !existingAthletes.has(athlete.id)) {
+        teamAthletes.push(JSON.parse(JSON.stringify(athlete)));
+        existingAthletes.add(athlete.id);
+      }
+    });
 
-  addExerciseDialog.value = false;
+    selectedAthleteIds.value = []
+    addExerciseDialog.value = false;
+  } catch (error) {
+    console.error("Failed to add athlete to team", error);
+    // exerciseMutationError.value =
+    //   error?.response?.data?.message ||
+    //   "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    // exerciseMutationPending.value = false;
+  }
 };
+
 
 const removeExerciseFromPlan = (exerciseId) => {
   if (!selectedTeam) return;
