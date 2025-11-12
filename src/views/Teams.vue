@@ -21,8 +21,8 @@ const availableAthletes = ref([
 ]);
 
 const teamSections = computed(() => [
-  { label: "Your Teams", type: "team", plans: yourTeams.value },
-  { label: "Other Teams", type: "individual", plans: otherTeams.value },
+  { label: "Your Teams", type: "team", teams: yourTeams.value },
+  { label: "Other Teams", type: "individual", teams: otherTeams.value },
 ]);
 
 const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
@@ -89,15 +89,15 @@ const getAllAthletes = async () => { // todo all of these should be in a service
   }
 };
 
-const teamSelected = (type, planId) => {
-  console.log("teamSelected", type, planId)
+const teamSelected = (type, teamId) => {
+  console.log("teamSelected", type, teamId)
   if (!selectedTeamKey.id) {
     selectedTeam.value = null;
   }
   const collection = type === "team" ? yourTeams.value : otherTeams.value;
-  selectedTeamKey.id = planId;
+  selectedTeamKey.id = teamId;
   selectedTeamKey.type = type;
-  selectedTeam.value = collection.find((plan) => plan.id === selectedTeamKey.id) ?? null;
+  selectedTeam.value = collection.find((team) => team.id === selectedTeamKey.id) ?? null;
   console.log(selectedTeam.value)
     console.log("getAthletesOnTeam")
 
@@ -140,15 +140,17 @@ watch(
       }
       return
     };
-    const defaultPlan =
+    const defaultTeam =
       yourTeams.value[0] ??
       otherTeams.value[0] ??
       null;
-    if (defaultPlan) {
-      selectedTeamKey.type = yourTeams.value.find((plan) => plan.id === defaultPlan.id)
+    if (defaultTeam) {
+      // feels sketchy but it works
+      selectedTeamKey.type = yourTeams.value.find((team) => team.id === defaultTeam.id)
         ? "team"
         : "individual";
-      selectedTeamKey.id = defaultPlan.id;
+      selectedTeamKey.id = defaultTeam.id;
+      teamSelected(selectedTeamKey.type, selectedTeamKey.id);
     }
   },
   { immediate: true }
@@ -248,54 +250,6 @@ const createAthlete = () => {
 
 const addExerciseDialog = ref(false);
 const selectedAthleteIds = ref([]);
-const showInlineExerciseForm = ref(false);
-
-const inlineExercise = reactive({
-  name: "",
-  type: "",
-  muscleGroup: "",
-  restTimer: 90,
-  notes: "",
-});
-
-const resetInlineExercise = () => {
-  Object.assign(inlineExercise, {
-    name: "",
-    type: "",
-    muscleGroup: "",
-    restTimer: 90,
-    notes: "",
-  });
-};
-
-watch(addExerciseDialog, (isOpen) => {
-  if (!isOpen) {
-    selectedAthleteIds.value = [];
-    showInlineExerciseForm.value = false;
-    resetInlineExercise();
-  }
-});
-
-const toggleInlineExerciseForm = () => {
-  if (showInlineExerciseForm.value) {
-    showInlineExerciseForm.value = false;
-    resetInlineExercise();
-  } else {
-    showInlineExerciseForm.value = true;
-  }
-};
-
-const createInlineExercise = () => {
-  if (!inlineExercise.name.trim()) {
-    return;
-  }
-
-  const createdExercise = appendAthlete(inlineExercise);
-  toggleInlineExerciseForm();
-  selectedAthleteIds.value = Array.from(
-    new Set([...selectedAthleteIds.value, createdExercise.id])
-  );
-};
 
 const addAthletesToTeam = async () => {
   if (!selectedTeam || !selectedAthleteIds.value.length) return;
@@ -333,10 +287,10 @@ const addAthletesToTeam = async () => {
 };
 
 
-const removeExerciseFromPlan = (exerciseId) => {
+const removeAthleteFromTeam = (athleteId) => {
   if (!selectedTeam) return;
   selectedTeam.exercises = selectedTeam.exercises.filter(
-    (item) => item.id !== exerciseId
+    (item) => item.id !== athleteId
   );
 };
 </script>
@@ -362,17 +316,17 @@ const removeExerciseFromPlan = (exerciseId) => {
                 <v-subheader class="text-uppercase font-weight-medium">
                   {{ section.label }}
                 </v-subheader>
-                <v-alert v-if="section.plans.length === 0" variant="tonal" type="info">
+                <v-alert v-if="section.teams.length === 0" variant="tonal" type="info">
                   You don't have any teams. Use the + button to get started.
                 </v-alert>
                 <v-list-item
-                  v-for="plan in section.plans"
-                  :key="plan.id"
-                  :active="selectedTeamKey.type === section.type && selectedTeamKey.id === plan.id"
+                  v-for="team in section.teams"
+                  :key="team.id"
+                  :active="selectedTeamKey.type === section.type && selectedTeamKey.id === team.id"
                   rounded
-                  @click="teamSelected(section.type, plan.id);"
+                  @click="teamSelected(section.type, team.id);"
                 >
-                  <v-list-item-title>{{ plan.name }}</v-list-item-title>
+                  <v-list-item-title>{{ team.name }}</v-list-item-title>
                 </v-list-item>
               </template>
             </v-list>
@@ -429,7 +383,7 @@ const removeExerciseFromPlan = (exerciseId) => {
                       <v-btn
                         color="primary"
                         variant="text"
-                        @click="removeExerciseFromPlan(athlete.id)"
+                        @click=""
                       >
                         Contact Athlete
                       </v-btn>
@@ -438,7 +392,7 @@ const removeExerciseFromPlan = (exerciseId) => {
                       <v-btn
                         color="error"
                         variant="text"
-                        @click="removeExerciseFromPlan(athlete.id)"
+                        @click="removeAthleteFromTeam(athlete.id)"
                       >
                         Remove
                       </v-btn>
@@ -451,9 +405,9 @@ const removeExerciseFromPlan = (exerciseId) => {
           <template v-else>
             <v-card-text class="text-center py-12">
               <v-icon size="56" class="mb-3" color="primary">mdi-view-dashboard-outline</v-icon>
-              <p class="text-body-1">Create a plan to get started, or select one from the sidebar.</p>
+              <p class="text-body-1">Create a team to get started, or select one from the sidebar.</p>
               <v-btn color="primary" class="mt-4" @click="newTeamDialog = true">
-                New Plan
+                New Team
               </v-btn>
             </v-card-text>
           </template>
@@ -468,73 +422,9 @@ const removeExerciseFromPlan = (exerciseId) => {
     <v-dialog v-model="addExerciseDialog" max-width="560">
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between">
-          <span>Select Athletes</span>
-          <v-btn
-            size="small"
-            variant="text"
-            color="primary"
-           :prepend-icon="showInlineExerciseForm ? 'mdi-close-circle-outline' : 'mdi-plus'"
-            @click="toggleInlineExerciseForm"
-          >
-            {{ showInlineExerciseForm ? "Close Form" : "New Athlete??" }}
-          </v-btn>
+          <span>Select Athletes to add to '{{ selectedTeam.name }}'</span>
         </v-card-title>
         <v-card-text>
-          <v-expand-transition>
-            <div v-if="showInlineExerciseForm" class="mb-4">
-              <v-form @submit.prevent="createInlineExercise" class="d-flex flex-column">
-                <v-text-field
-                  v-model="inlineExercise.name"
-                  label="Exercise name"
-                  prepend-inner-icon="mdi-dumbbell"
-                  density="comfortable"
-                  required
-                  class="mb-3"
-                />
-                <v-select
-                  v-model="inlineExercise.type"
-                  :items="['Strength', 'Cardio', 'Mobility', 'Other']"
-                  label="Type"
-                  prepend-inner-icon="mdi-format-list-bulleted"
-                  density="comfortable"
-                  class="mb-3"
-                />
-                <v-text-field
-                  v-model="inlineExercise.muscleGroup"
-                  label="Muscle group"
-                  prepend-inner-icon="mdi-dna"
-                  density="comfortable"
-                  class="mb-3"
-                />
-                <v-text-field
-                  v-model="inlineExercise.restTimer"
-                  label="Rest timer (seconds)"
-                  type="number"
-                  min="0"
-                  prepend-inner-icon="mdi-timer-outline"
-                  density="comfortable"
-                  class="mb-3"
-                />
-                <v-textarea
-                  v-model="inlineExercise.notes"
-                  label="Notes"
-                  rows="3"
-                  auto-grow
-                  prepend-inner-icon="mdi-note-text"
-                  density="comfortable"
-                  class="mb-3"
-                />
-                <div class="d-flex justify-end mt-2">
-                  <v-btn variant="text" @click="toggleInlineExerciseForm">
-                    Cancel
-                  </v-btn>
-                  <v-btn type="submit" color="primary" prepend-icon="mdi-content-save">
-                    Save Exercise
-                  </v-btn>
-                </div>
-              </v-form>
-            </div>
-          </v-expand-transition>
           <v-list
             v-if="selectedTeam.athletes.length < availableAthletes.length"
             density="comfortable"
@@ -560,7 +450,7 @@ const removeExerciseFromPlan = (exerciseId) => {
             </v-item-group>
           </v-list>
           <v-alert v-else type="info" variant="tonal">
-            No athletes are available yet. Use New Athlete?? to create one.
+            No more athletes are available. Tell your athlete to create an account.
           </v-alert>
         </v-card-text>
         <v-card-actions>
@@ -571,7 +461,7 @@ const removeExerciseFromPlan = (exerciseId) => {
             :disabled="!selectedAthleteIds.length"
             @click="addAthletesToTeam"
           >
-            Add to "{{selectedTeam.name}}"
+            Add to Team
           </v-btn>
         </v-card-actions>
       </v-card>
