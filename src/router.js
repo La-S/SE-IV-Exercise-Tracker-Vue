@@ -58,14 +58,4 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to, from, next) => {
-  const user = Utils.getStore("user");
-
-  if (user && to.name === "login") {
-    return next({ name: "dashboard" });
-  }
-
-  return next();
-});
-
 export default router;
