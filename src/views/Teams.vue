@@ -168,6 +168,8 @@ const newTeam = reactive({
 
 const resetNewTeam = () => {
   newTeam.type = "team";
+  newTeam.name = "";
+  newTeam.athletes = [];
 };
 
 
@@ -189,6 +191,7 @@ const createTeam = async function() {
     }
     yourTeams.value.push(createdTeam);
     resetNewTeam();
+    newTeamDialog.value = false
   } catch (error) {
     // console.error("Failed to create exercise template", error);
     // exerciseMutationError.value =
