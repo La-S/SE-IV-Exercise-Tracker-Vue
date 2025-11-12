@@ -287,11 +287,27 @@ const addAthletesToTeam = async () => {
 };
 
 
-const removeAthleteFromTeam = (athleteId) => {
+const removeAthleteFromTeam = async (athleteId) => {
   if (!selectedTeam) return;
-  selectedTeam.exercises = selectedTeam.exercises.filter(
-    (item) => item.id !== athleteId
-  );
+
+  try {
+    const response = await apiClient.delete(`team/${selectedTeam.value.id}/users`, {data: [athleteId]});
+    console.log(response.statusText)
+    console.log(response.status)
+    if (response.status != 200){
+      throw Error("status not 200.")
+    }
+    selectedTeam.value.athletes = selectedTeam.value.athletes.filter(
+      (item) => item.id !== athleteId
+    );
+  } catch (error) {
+    console.error("Failed to add athlete to team", error);
+    // exerciseMutationError.value =
+    //   error?.response?.data?.message ||
+    //   "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    // exerciseMutationPending.value = false;
+  }
 };
 </script>
 
