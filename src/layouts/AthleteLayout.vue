@@ -17,8 +17,16 @@ import AthleteMenu from '../components/AthleteMenu.vue'
   flex-direction: column;
   min-height: 100vh;
 }
+
 main {
   flex: 1;
   padding: 1rem;
+  padding-top: 64px;
+}
+
+@media (max-width: 600px) {
+  main {
+    padding-top: 72px;
+  }
 }
 </style>
