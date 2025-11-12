@@ -5,11 +5,6 @@ import apiClient from "../services/services";
 const yourTeams = ref([]);
 
 const otherTeams = ref([
-  {
-    id: 101,
-    name: "OC Football",
-    athletes: []
-  },
 ]);
 
 let selectedTeam = ref(null);
@@ -396,7 +391,7 @@ const removeExerciseFromPlan = (exerciseId) => {
               <v-row>
                 <v-col cols="12" md="7">
                   <p class="text-body-2 mb-4">
-                    {{ "There are 34 athletes on this team." }}
+                    {{ `There are ${selectedTeam.athletes.length} athletes on this team.` }}
                   </p>
                 </v-col>
               </v-row>
