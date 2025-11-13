@@ -22,7 +22,7 @@ const availableAthletes = ref([
 
 const teamSections = computed(() => [
   { label: "Your Teams", type: "team", teams: yourTeams.value },
-  { label: "Other Teams", type: "individual", teams: otherTeams.value },
+  { label: "Other Teams", type: "others", teams: otherTeams.value },
 ]);
 
 const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
@@ -148,7 +148,7 @@ watch(
       // feels sketchy but it works
       selectedTeamKey.type = yourTeams.value.find((team) => team.id === defaultTeam.id)
         ? "team"
-        : "individual";
+        : "others";
       selectedTeamKey.id = defaultTeam.id;
       teamSelected(selectedTeamKey.type, selectedTeamKey.id);
     }
@@ -157,13 +157,16 @@ watch(
 );
 
 const newTeamDialog = ref(false);
+const editTeamDialog = ref(false);
 const newTeam = reactive({
+  id: undefined,
   type: "team",
   name: "",
   athletes: []
 });
 
 const resetNewTeam = () => {
+  newTeam.id = undefined;
   newTeam.type = "team";
   newTeam.name = "";
   newTeam.athletes = [];
@@ -189,6 +192,34 @@ const createTeam = async function() {
     yourTeams.value.push(createdTeam);
     resetNewTeam();
     newTeamDialog.value = false
+  } catch (error) {
+    // console.error("Failed to create exercise template", error);
+    // exerciseMutationError.value =
+    //   error?.response?.data?.message ||
+    //   "Unable to save the exercise. Please check the details and try again.";
+  } finally {
+    // exerciseMutationPending.value = false;
+  }
+};
+
+const updateTeam = async function() {
+  if (!newTeam.name.trim()) {
+    return;
+  }
+
+  const payload = {"name": newTeam.name.trim()}
+  const idToUpdate = newTeam.id;
+
+  try {
+    // exerciseMutationError.value = null;
+    // exerciseMutationPending.value = true;
+    const response = await apiClient.put(`team/${idToUpdate}`, payload);
+    if (response.status != 200) {
+      throw Error("Team failed to be created!")
+    }
+    selectedTeam.value.name = newTeam.name.trim();
+    resetNewTeam();
+    editTeamDialog.value = false
   } catch (error) {
     // console.error("Failed to create exercise template", error);
     // exerciseMutationError.value =
@@ -286,6 +317,14 @@ const addAthletesToTeam = async () => {
   }
 };
 
+function LOGSTUFF() {
+  console.log("HERE")
+  console.log(selectedTeam)
+  console.log(selectedTeam.value.id)
+  console.log(selectedTeam.value)
+  console.log(newTeam)
+}
+
 
 const removeAthleteFromTeam = async (athleteId) => {
   if (!selectedTeam) return;
@@ -335,21 +374,23 @@ const removeAthleteFromTeam = async (athleteId) => {
           <v-card-text class="flex-grow-1 overflow-y-auto pr-2">
             <v-list density="compact" nav>
               <template v-for="section in teamSections" :key="section.type">
-                <v-subheader class="text-uppercase font-weight-medium">
-                  {{ section.label }}
-                </v-subheader>
-                <v-alert v-if="section.teams.length === 0" variant="tonal" type="info">
-                  You don't have any teams. Use the + button to get started.
-                </v-alert>
-                <v-list-item
-                  v-for="team in section.teams"
-                  :key="team.id"
-                  :active="selectedTeamKey.type === section.type && selectedTeamKey.id === team.id"
-                  rounded
-                  @click="teamSelected(section.type, team.id);"
-                >
-                  <v-list-item-title>{{ team.name }}</v-list-item-title>
-                </v-list-item>
+                <span v-if="section?.type !== 'others' || section.teams.length > 0">
+                  <v-subheader class="text-uppercase font-weight-medium">
+                    {{ section.label }}
+                  </v-subheader>
+                  <v-alert v-if="section.teams.length === 0" variant="tonal" type="info">
+                    You don't have any teams. Use the + button to get started.
+                  </v-alert>
+                  <v-list-item
+                    v-for="team in section.teams"
+                    :key="team.id"
+                    :active="selectedTeamKey.type === section.type && selectedTeamKey.id === team.id"
+                    rounded
+                    @click="teamSelected(section.type, team.id);"
+                  >
+                    <v-list-item-title>{{ team.name }}</v-list-item-title>
+                  </v-list-item>
+                </span>
               </template>
             </v-list>
           </v-card-text>
@@ -359,8 +400,32 @@ const removeAthleteFromTeam = async (athleteId) => {
       <v-col cols="12" lg="6" class="px-lg-4 mt-6 mt-lg-0">
         <v-card class="h-100">
           <template v-if="selectedTeam">
-            <v-card-title class="d-flex flex-column align-start">
-              <span class="text-h5">{{ selectedTeam.name }}</span>
+            <v-card-title class="d-flex flex-wrap align-start">
+              <div class="flex-grow-1 d-flex flex-column pr-4">
+                <span class="text-h5">{{ selectedTeam.name }}</span>
+              </div>
+              <div class="d-flex align-center mt-3 mt-sm-0">
+              <v-btn
+                  variant="tonal"
+                  color="primary"
+                  size="small"
+                  class="mr-2"
+                  prepend-icon="mdi-pencil"
+                  @click="newTeam.name = selectedTeam.name; newTeam.type = selectedTeam.type; newTeam.id = selectedTeam.id; LOGSTUFF(); editTeamDialog = true"
+                >
+                  Edit
+                </v-btn>
+                <!-- "openEditPlan(selectedPlan)" -->
+                <v-btn
+                  variant="text"
+                  color="error"
+                  size="small"
+                  prepend-icon="mdi-delete"
+                  @click="confirmPlanDeletion(selectedPlan)"
+                >
+                  Delete
+                </v-btn>
+              </div>
             </v-card-title>
             <v-divider />
             <v-card-text>
@@ -504,6 +569,27 @@ const removeAthleteFromTeam = async (athleteId) => {
               <v-spacer />
               <v-btn variant="text" @click="newTeamDialog = false">Cancel</v-btn>
               <v-btn type="submit" color="primary">Create</v-btn>
+            </v-card-actions>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="editTeamDialog" max-width="520">
+      <v-card>
+        <v-card-title>Edit Team</v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="updateTeam">
+            <v-text-field
+              v-model="newTeam.name"
+              label="Team name"
+              prepend-inner-icon="mdi-file-document-edit"
+              required
+            />
+            <v-card-actions class="mt-2">
+              <v-spacer />
+              <v-btn variant="text" @click="editTeamDialog = false">Cancel</v-btn>
+              <v-btn type="submit" color="primary">Update</v-btn>
             </v-card-actions>
           </v-form>
         </v-card-text>
