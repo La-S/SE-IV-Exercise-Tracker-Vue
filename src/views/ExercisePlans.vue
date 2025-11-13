@@ -169,7 +169,6 @@ const mapTemplateToExercise = (template) => ({
 });
 
 const mapWorkoutToPlan = (workout) => {
-  const totalTimeValue = Number(workout.total_time);
   return {
     id: workout.id,
     parentId: workout.parent_id ?? null,
@@ -178,7 +177,6 @@ const mapWorkoutToPlan = (workout) => {
     notes: workout.notes ?? "",
     expectedDate: toDateInputValue(workout.expected_date),
     date: toDateInputValue(workout.date),
-    totalTime: Number.isFinite(totalTimeValue) ? totalTimeValue : 0,
     focusArea: workout.focus_area ?? "",
     exercises: [],
   };
@@ -795,11 +793,17 @@ watch(editExerciseDialog, (isOpen) => {
     <v-row align="stretch" justify="center" no-gutters>
       <v-col cols="12" lg="3" class="pr-lg-4">
         <v-card class="h-100 d-flex flex-column">
-          <v-card-title class="d-flex align-center">
-            Exercise Plans
-            <v-spacer />
-            <v-btn icon variant="text" color="primary" @click="newPlanDialog = true">
-              <v-icon>mdi-plus</v-icon>
+          <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
+            <span class="text-h6 text-sm-h5">Exercise Plans</span>
+            <v-btn
+              variant="tonal"
+              color="primary"
+              size="small"
+              prepend-icon="mdi-plus"
+              class="text-none"
+              @click="newPlanDialog = true"
+            >
+              Create Plan
             </v-btn>
           </v-card-title>
 
@@ -899,12 +903,6 @@ watch(editExerciseDialog, (isOpen) => {
                 <v-col cols="12" md="6">
                   <p class="text-body-2 mb-2">
                     <strong>Expected Date:</strong> {{ formatDateLabel(selectedPlan.expectedDate) }}
-                  </p>
-                  <p class="text-body-2 mb-2">
-                    <strong>Workout Date:</strong> {{ formatDateLabel(selectedPlan.date) }}
-                  </p>
-                  <p class="text-body-2 mb-2">
-                    <strong>Total Time (min):</strong> {{ selectedPlan.totalTime ?? 0 }}
                   </p>
                 </v-col>
                 <v-col cols="12" md="6">
@@ -1071,7 +1069,7 @@ watch(editExerciseDialog, (isOpen) => {
                     :loading="exerciseMutationPending"
                     :disabled="exerciseMutationPending"
                   >
-                    Save Exercise
+                    Create Exercise
                   </v-btn>
                 </div>
               </v-form>
@@ -1313,14 +1311,6 @@ watch(editExerciseDialog, (isOpen) => {
                   prepend-inner-icon="mdi-calendar-clock"
                 />
               </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="newPlan.date"
-                  label="Workout date"
-                  type="date"
-                  prepend-inner-icon="mdi-calendar"
-                />
-              </v-col>
             </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
@@ -1374,14 +1364,7 @@ watch(editExerciseDialog, (isOpen) => {
                   prepend-inner-icon="mdi-calendar-clock"
                 />
               </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="editPlan.date"
-                  label="Workout date"
-                  type="date"
-                  prepend-inner-icon="mdi-calendar"
-                />
-              </v-col>
+
             </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
