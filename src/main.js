@@ -11,7 +11,6 @@ const ensureMockUser = () => {
   }
 
   const mockUser = {
-    userId: "demo-user",
     fName: "Guest",
     lName: "Coach",
     email: "guest@example.com",
