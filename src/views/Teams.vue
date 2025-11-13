@@ -319,8 +319,14 @@ const removeAthleteFromTeam = async (athleteId) => {
           <v-card-title class="d-flex align-center">
             Teams
             <v-spacer />
-            <v-btn icon variant="text" color="primary" @click="newTeamDialog = true">
-              <v-icon>mdi-plus</v-icon>
+            <v-btn
+              color="primary"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-plus"
+              @click="newTeamDialog = true"
+            >
+              Create Team
             </v-btn>
           </v-card-title>
 
