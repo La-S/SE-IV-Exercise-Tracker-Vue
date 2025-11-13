@@ -169,7 +169,6 @@ const mapTemplateToExercise = (template) => ({
 });
 
 const mapWorkoutToPlan = (workout) => {
-  const totalTimeValue = Number(workout.total_time);
   return {
     id: workout.id,
     parentId: workout.parent_id ?? null,
@@ -178,7 +177,6 @@ const mapWorkoutToPlan = (workout) => {
     notes: workout.notes ?? "",
     expectedDate: toDateInputValue(workout.expected_date),
     date: toDateInputValue(workout.date),
-    totalTime: Number.isFinite(totalTimeValue) ? totalTimeValue : 0,
     focusArea: workout.focus_area ?? "",
     exercises: [],
   };
@@ -905,10 +903,6 @@ watch(editExerciseDialog, (isOpen) => {
                 <v-col cols="12" md="6">
                   <p class="text-body-2 mb-2">
                     <strong>Expected Date:</strong> {{ formatDateLabel(selectedPlan.expectedDate) }}
-                  </p>
-
-                  <p class="text-body-2 mb-2">
-                    <strong>Total Time (min):</strong> {{ selectedPlan.totalTime ?? 0 }}
                   </p>
                 </v-col>
                 <v-col cols="12" md="6">
