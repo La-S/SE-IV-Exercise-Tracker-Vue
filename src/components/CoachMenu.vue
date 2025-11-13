@@ -20,6 +20,7 @@ const menuOpen = ref(false);
 const navItems = [
   { label: "Dashboard", name: "dashboard" },
   { label: "Exercise Plans", name: "exercise-plans" },
+  { label: "Manage Teams", name: "teams" },
 ];
 
 const resetMenu = () => {
