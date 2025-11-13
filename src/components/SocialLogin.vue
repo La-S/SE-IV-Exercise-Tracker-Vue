@@ -7,6 +7,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const fName = ref("");
 const lName = ref("");
+const role = ref("");
 const user = ref({});
 
 const loginWithGoogle = () => {
@@ -36,9 +37,16 @@ const handleCredentialResponse = async (response) => {
     .then((response) => {
       user.value = response.data;
       Utils.setStore("user", user.value);
-      fName.value = user.value.fName;
-      lName.value = user.value.lName;
-      router.push({ name: "dashboard" });
+      fName.value = user.value.firstName;
+      lName.value = user.value.lastName;
+      role.value = user.value.role
+      if (role.value == "coach" || role.value == "admin"){ 
+        console.log("nav to dashboard");
+        router.push({ name: "dashboard" });
+      }
+      else{
+        router.push({name: "athlete-homepage"})
+      }
     })
     .catch((error) => {
       console.log("error", error);
