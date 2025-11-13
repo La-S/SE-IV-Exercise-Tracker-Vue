@@ -325,6 +325,44 @@ function LOGSTUFF() {
   console.log(newTeam)
 }
 
+const deleteTeam = async (team) => {
+  console.log("need to delete da team")
+  try {
+    let response = await apiClient.delete(`team/${team.id}`);
+    if (response.status != 200) {
+      throw Error("ERROR!")
+    }
+    let isInYourTeams = yourTeams.value.find((findTeam) => { return findTeam.name == team.name; })
+    if (isInYourTeams) {
+      let idx = yourTeams.value.indexOf(isInYourTeams);
+      yourTeams.value.splice(idx, 1);
+      teamSelected('team', undefined);
+      selectedTeam.value = yourTeams.value.at(0);
+    }
+    let isInOtherTeams = otherTeams.value.find((findTeam) => { return findTeam.name == team.name; })
+    if (isInOtherTeams) {
+      let idx = otherTeams.value.indexOf(isInOtherTeams);
+      otherTeams.value.splice(idx, 1);
+      teamSelected('team', undefined);
+      selectedTeam.value = otherTeams.value.at(0);
+    }
+  } catch (error) {
+    console.error(`Failed to delete plan ${team.id}`, error);
+  } finally {
+    //
+  }
+};
+
+
+const confirmTeamDeletion = (team) => {
+  if (!team) return;
+  const confirmation = window.confirm(
+    `Delete team "${team.name}"? This action cannot be undone.`
+  );
+  if (confirmation) {
+    deleteTeam(team);
+  }
+};
 
 const removeAthleteFromTeam = async (athleteId) => {
   if (!selectedTeam) return;
@@ -415,13 +453,12 @@ const removeAthleteFromTeam = async (athleteId) => {
                 >
                   Edit
                 </v-btn>
-                <!-- "openEditPlan(selectedPlan)" -->
                 <v-btn
                   variant="text"
                   color="error"
                   size="small"
                   prepend-icon="mdi-delete"
-                  @click="confirmPlanDeletion(selectedPlan)"
+                  @click="confirmTeamDeletion(selectedTeam)"
                 >
                   Delete
                 </v-btn>
