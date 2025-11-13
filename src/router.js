@@ -1,4 +1,4 @@
-import { createWebHistory, createRouter } from "vue-router";
+import { createMemoryHistory, createRouter } from "vue-router";
 
 import Login from "./views/Login.vue";
 
@@ -10,8 +10,9 @@ import CurrentWorkout from "./views/CurrentWorkout.vue";
 import CoachLayout from "./layouts/CoachLayout.vue";
 import AthleteLayout from "./layouts/AthleteLayout.vue";
 
+
 const router = createRouter({
-  history: createWebHistory(),
+  history: createMemoryHistory(),
   routes: [
     {
       path: "/",
@@ -55,8 +56,8 @@ const router = createRouter({
       component: Login,
     },
     {
-      path: "/:pathMatch(.*)*",
-      redirect: "/login",
+      path: "/:pathMatch(.)",
+      redirect: "/coach/dashboard",
     },
   ],
 });
