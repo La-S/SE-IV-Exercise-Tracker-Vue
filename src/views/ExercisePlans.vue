@@ -1,127 +1,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import apiClient from "../services/services.js";
+import Utils from "../config/utils.js";
 
-const teamPlans = ref([
-  {
-    id: 1,
-    name: "Weight Training",
-    focusArea: "Strength & Conditioning",
-    description: "High intensity compound lifts with progressive load.",
-    notes: "Testing team notes",
-    exercises: [],
-  },
-]);
-
-const individualPlans = ref([
-  {
-    id: 101,
-    name: "Mobility",
-    focusArea: "Active Mobility",
-    description: "Low impact mobility circuit for post-competition day.",
-    notes: "testing indiv notes",
-    exercises: [],
-  },
-]);
-
-const availableExercises = ref([]);
-const exercisesLoading = ref(false);
-const exerciseLoadError = ref(null);
-const exerciseMutationError = ref(null);
-const exerciseMutationPending = ref(false);
-
-const formatLabel = (value) => {
-  if (!value && value !== 0) return "";
-  const label = String(value);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
-
-const toBackendPayload = (exercise) => {
-  const typeValue = (exercise.type || "").toString().trim().toLowerCase();
-  const muscleValue = (exercise.muscleGroup || "").toString().trim().toLowerCase();
-  return {
-    name: exercise.name.trim(),
-    type: typeValue || "other",
-    muscle_group: muscleValue || null,
-  };
-};
-
-const mapTemplateToExercise = (template, extras = {}) => ({
-  id: template.id,
-  name: template.name ?? "Unnamed Exercise",
-  type: formatLabel(template.type ?? "other"),
-  muscleGroup: template.muscle_group ? formatLabel(template.muscle_group) : "",
-  restTimer: extras.restTimer ?? 0,
-  notes: extras.notes ?? "",
-});
-
-const loadAvailableExercises = async () => {
-  exercisesLoading.value = true;
-  exerciseLoadError.value = null;
-  try {
-    const response = await apiClient.get("exerciseTemplate");
-    const data = response.data;
-    if (Array.isArray(data)) {
-      availableExercises.value = data.map((template) => mapTemplateToExercise(template));
-    } else {
-      availableExercises.value = [];
-    }
-  } catch (error) {
-    console.error("Failed to load exercise templates", error);
-    exerciseLoadError.value =
-      "Unable to load available exercises. Please try again later.";
-  } finally {
-    exercisesLoading.value = false;
-  }
-};
-
-onMounted(() => {
-  loadAvailableExercises();
-});
-
-const planSections = computed(() => [
-  { label: "Team Plans", type: "team", plans: teamPlans.value },
-  { label: "Individual Plans", type: "individual", plans: individualPlans.value },
-]);
-
-const getPlansByType = (type) =>
-  type === "team" ? teamPlans.value : individualPlans.value;
-
-const selectedPlanKey = reactive({ type: "team", id: teamPlans.value[0]?.id ?? null });
-
-const ensureSelectedPlan = () => {
-  if (selectedPlanKey.id) {
-    const currentCollection = getPlansByType(selectedPlanKey.type);
-    if (currentCollection.some((plan) => plan.id === selectedPlanKey.id)) {
-      return;
-    }
-  }
-  const fallbackPlan = teamPlans.value[0] ?? individualPlans.value[0] ?? null;
-  if (fallbackPlan) {
-    selectedPlanKey.type = teamPlans.value.find(function(plan) {
-      return plan.id===fallbackPlan.id;
-    })
-      ? "team"
-      : "individual";
-    selectedPlanKey.id = fallbackPlan.id;
-  } else {
-    selectedPlanKey.id = null;
-  }
-};
-
-watch(
-  () => [teamPlans.value.length, individualPlans.value.length],
-  () => {
-    ensureSelectedPlan();
-  },
-  { immediate: true }
-);
-
-const selectedPlan = computed(function () {
-  if (!selectedPlanKey.id) return null;
-  const collection = getPlansByType(selectedPlanKey.type);
-  return collection.find((plan) => plan.id === selectedPlanKey.id) ?? null;
-});
+const DEFAULT_REST_TIMER = 90;
 
 const muscleFocusOrder = [
   "Core",
@@ -136,216 +18,65 @@ const muscleFocusOrder = [
   "Quad",
   "Glute",
   "Cardio",
-  "Other"
+  "Other",
 ];
 
-const newPlanDialog = ref(false);
-const newPlan = reactive({
-  type: "team",
-  name: "",
-  focusArea: "",
-  description: "",
-  notes: "",
-});
+const plans = ref([]);
 
-const resetNewPlan = () => {
-  newPlan.type = "team";
-  newPlan.name = "";
-  newPlan.focusArea = "";
-  newPlan.description = "";
-  newPlan.notes = "";
-};
+const plansLoading = ref(true);
+const planLoadError = ref(null);
+const planMutationPending = ref(false);
+const planMutationError = ref(null);
 
-const createPlan = function() {
-  if(!newPlan.name.trim()) {
-    return;
-  }
-
-  const targetCollection = newPlan.type === "team" ? teamPlans.value:individualPlans.value;
-  const plan = {
-    id: Date.now(),
-    name: newPlan.name.trim(),
-    focusArea: newPlan.focusArea.trim(),
-    description: newPlan.description.trim(),
-    notes: newPlan.notes.trim(),
-    exercises: [],
-  };
-
-  targetCollection.push(plan);
-  selectedPlanKey.type = newPlan.type;
-  selectedPlanKey.id = plan.id;
-
-  newPlanDialog.value = false;
-  resetNewPlan();
-};
-
-const editPlanDialog = ref(false);
-const editPlan = reactive({
-  id: null,
-  type: "team",
-  name: "",
-  focusArea: "",
-  description: "",
-  notes: "",
-});
-
-const resetEditPlan = () => {
-  editPlan.id = null;
-  editPlan.type = "team";
-  editPlan.name = "";
-  editPlan.focusArea = "";
-  editPlan.description = "";
-  editPlan.notes = "";
-};
-
-const openEditPlan = (plan, type) => {
-  if (!plan) return;
-  editPlan.id = plan.id;
-  editPlan.type = type;
-  editPlan.name = plan.name ?? "";
-  editPlan.focusArea = plan.focusArea ?? "";
-  editPlan.description = plan.description ?? "";
-  editPlan.notes = plan.notes ?? "";
-  editPlanDialog.value = true;
-};
-
-const applyPlanUpdates = (plan, updates) => {
-  Object.assign(plan, {
-    name: updates.name.trim(),
-    focusArea: updates.focusArea.trim(),
-    description: updates.description.trim(),
-    notes: updates.notes.trim(),
-  });
-};
-
-const updatePlan = function() {
-  if(!editPlan.id||!editPlan.name.trim()) {
-    return;
-  }
-
-  const collection=getPlansByType(editPlan.type);
-  const plan=collection.find((item) => item.id===editPlan.id);
-  if(plan) {
-    applyPlanUpdates(plan, editPlan);
-    ensureSelectedPlan();
-  }
-  editPlanDialog.value=false;
-  resetEditPlan();
-};
-
-const deletePlan = function(planId, type) {
-  const collection=getPlansByType(type);
-  const index=collection.findIndex((plan) => plan.id===planId);
-  if(index===-1)
-    return;
-
-  collection.splice(index, 1);
-  if(selectedPlanKey.type === type && selectedPlanKey.id === planId) {
-    ensureSelectedPlan();
-  }
-  if(editPlanDialog.value&&editPlan.id===planId) {
-    editPlanDialog.value=false;
-    resetEditPlan();
-  }
-};
-
-const confirmPlanDeletion = function(plan, type) {
-  if(!plan)
-    return;
-  const planLabel=type==="team"? "team":"individual";
-  const confirmation=window.confirm(
-    `Delete ${planLabel} plan "${plan.name}"? This action cannot be undone.`
-  );
-  if(confirmation) {
-    deletePlan(plan.id, type);
-  }
-};
-
-const newExercise = reactive({
-  name: "",
-  type: "",
-  muscleGroup: "",
-  restTimer: 90,
-  notes: "",
-});
-
-const normalizeExerciseFields = (exercise) => {
-  const restTimerValue = Number(exercise.restTimer);
-  const typeValue = exercise.type.trim().toLowerCase();
-  const muscleValue = exercise.muscleGroup.trim().toLowerCase();
-  return {
-    name: exercise.name.trim(),
-    type: formatLabel(typeValue || "other"),
-    muscleGroup: muscleValue ? formatLabel(muscleValue) : "",
-    restTimer: Number.isFinite(restTimerValue) ? restTimerValue : 0,
-    notes: exercise.notes.trim(),
-  };
-};
-
-const updateExerciseAssignments = function(exerciseId, updates) {
-  const planCollections=[teamPlans.value, individualPlans.value];
-  planCollections.forEach((plans) => {
-    plans.forEach((plan) => {
-      const target=plan.exercises.find((item) => item.id===exerciseId);
-      if(target) {
-        Object.assign(target, updates);
-      }
-    });
-  });
-};
-
-const removeExerciseAssignments = function(exerciseId) {
-  const planCollections=[teamPlans.value, individualPlans.value];
-  planCollections.forEach(function(plans) {
-    plans.forEach(function(plan) {
-      plan.exercises=plan.exercises.filter((exercise) => exercise.id!==exerciseId);
-    });
-  });
-};
-
-const resetNewExercise = () => {
-  Object.assign(newExercise, {
-    name: "",
-    type: "",
-    muscleGroup: "",
-    restTimer: 90,
-    notes: "",
-  });
-};
-
-const createExercise = async function() {
-  if(!newExercise.name.trim() || exerciseMutationPending.value) {
-    return;
-  }
-
-  const normalized = normalizeExerciseFields(newExercise);
-  const payload = toBackendPayload(normalized);
-
-  try {
-    exerciseMutationError.value = null;
-    exerciseMutationPending.value = true;
-    const response = await apiClient.post("exerciseTemplate", payload);
-    const createdExercise = mapTemplateToExercise(response.data, {
-      restTimer: normalized.restTimer,
-      notes: normalized.notes,
-    });
-    availableExercises.value.push(createdExercise);
-    resetNewExercise();
-  } catch (error) {
-    console.error("Failed to create exercise template", error);
-    exerciseMutationError.value =
-      error?.response?.data?.message ||
-      "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    exerciseMutationPending.value = false;
-  }
-};
+const availableExercises = ref([]);
+const exercisesLoading = ref(true);
+const exerciseLoadError = ref(null);
+const exerciseMutationError = ref(null);
+const exerciseMutationPending = ref(false);
 
 const addExerciseDialog = ref(false);
 const selectedExerciseIds = ref([]);
 const showInlineExerciseForm = ref(false);
 const exerciseSearch = ref("");
 const exerciseFocusFilter = ref("all");
+
+const newPlanDialog = ref(false);
+const editPlanDialog = ref(false);
+const editExerciseDialog = ref(false);
+
+const newPlan = reactive({
+  focusArea: "",
+  notes: "",
+  expectedDate: "",
+  date: "",
+});
+
+const editPlan = reactive({
+  id: null,
+  focusArea: "",
+  notes: "",
+  expectedDate: "",
+  date: "",
+});
+
+const inlineExercise = reactive({
+  name: "",
+  type: "",
+  muscleGroup: "",
+});
+
+const editExercise = reactive({
+  templateId: null,
+  assignmentId: null,
+  source: "library",
+  planId: null,
+  name: "",
+  type: "",
+  muscleGroup: "",
+  restTimer: DEFAULT_REST_TIMER,
+  notes: "",
+});
+
 const exerciseFocusOptions = computed(() => [
   { label: "All", value: "all" },
   ...muscleFocusOrder.map((focus) => ({
@@ -354,64 +85,254 @@ const exerciseFocusOptions = computed(() => [
   })),
 ]);
 
-const inlineExercise = reactive({
-  name: "",
-  type: "",
-  muscleGroup: "",
-  restTimer: 90,
+let templateLookup = new Map();
+
+const formatLabel = (value) => {
+  if (!value && value !== 0) return "";
+  const label = String(value);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toISOString().slice(0, 10);
+};
+
+const formatDateLabel = (value) => {
+  if (!value) return "Not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleDateString();
+};
+
+const parseNumericId = (value) => {
+  if (value === null || value === undefined) return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+
+const resolveUserContext = () => {
+  const stored = Utils.getStore("user") || {};
+  const rawUserId = stored.userId ?? stored.user_id ?? stored.id;
+  const userId = parseNumericId(rawUserId);
+  const rawCoachId = stored.coachId ?? stored.coach_id;
+  const coachId = parseNumericId(rawCoachId) ?? userId; 
+  return { userId, coachId };
+};
+
+const selectedPlanId = ref(null);
+
+const selectedPlan = computed(() => {
+  if (!selectedPlanId.value) return null;
+  return plans.value.find((plan) => plan.id === selectedPlanId.value) ?? null;
+});
+
+const ensureSelectedPlan = () => {
+  if (selectedPlanId.value) {
+    const exists = plans.value.some((plan) => plan.id === selectedPlanId.value);
+    if (exists) {
+      return;
+    }
+  }
+  selectedPlanId.value = plans.value[0]?.id ?? null;
+};
+
+watch(
+  () => plans.value.length,
+  () => {
+    ensureSelectedPlan();
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  loadPlans();
+});
+
+const setTemplateLookup = () => {
+  templateLookup = new Map(availableExercises.value.map((exercise) => [exercise.id, exercise]));
+};
+
+const mapTemplateToExercise = (template) => ({
+  id: template.id,
+  name: template.name ?? "Unnamed Exercise",
+  type: formatLabel(template.type ?? "other"),
+  muscleGroup: template.muscle_group ? formatLabel(template.muscle_group) : "",
   notes: "",
 });
 
-const resetInlineExercise = function() {
+const mapWorkoutToPlan = (workout) => {
+  return {
+    id: workout.id,
+    parentId: workout.parent_id ?? null,
+    userId: workout.user_id ?? null,
+    coachId: workout.coach_id ?? null,
+    notes: workout.notes ?? "",
+    expectedDate: toDateInputValue(workout.expected_date),
+    date: toDateInputValue(workout.date),
+    focusArea: workout.focus_area ?? "",
+    exercises: [],
+  };
+};
+
+const mapAssignmentToPlanExercise = (assignment) => {
+  const template = templateLookup.get(assignment.exercise_template_id);
+  const restValue = Number(assignment.rest_timer);
+  return {
+    assignmentId: assignment.id,
+    templateId: assignment.exercise_template_id,
+    name: template?.name ?? `Exercise #${assignment.exercise_template_id}`,
+    type: template?.type ?? "Other",
+    muscleGroup: template?.muscleGroup ?? "",
+    restTimer: Number.isFinite(restValue) ? restValue : 0,
+    notes: assignment.notes ?? "",
+  };
+};
+
+const propagateTemplateToPlans = (template) => {
+  plans.value.forEach((plan) => {
+    plan.exercises.forEach((exercise) => {
+      if (exercise.templateId === template.id) {
+        exercise.name = template.name;
+        exercise.type = template.type;
+        exercise.muscleGroup = template.muscleGroup;
+      }
+    });
+  });
+};
+
+const removePlanExercisesByTemplate = (templateId) => {
+  plans.value.forEach((plan) => {
+    plan.exercises = plan.exercises.filter((exercise) => exercise.templateId !== templateId);
+  });
+};
+
+const collectAssignmentIdsByTemplate = (templateId) => {
+  const assignmentIds = [];
+  plans.value.forEach((plan) => {
+    plan.exercises.forEach((exercise) => {
+      if (exercise.templateId === templateId && exercise.assignmentId) {
+        assignmentIds.push(exercise.assignmentId);
+      }
+    });
+  });
+  return assignmentIds;
+};
+
+const loadPlans = async () => {
+  plansLoading.value = true;
+  exercisesLoading.value = true;
+  planLoadError.value = null;
+  exerciseLoadError.value = null;
+
+  try {
+    const [workoutResponse, exerciseResponse, templateResponse] = await Promise.all([
+      apiClient.get("workout"),
+      apiClient.get("exercise"),
+      apiClient.get("exerciseTemplate"),
+    ]);
+
+    const templates = Array.isArray(templateResponse.data) ? templateResponse.data : [];
+    availableExercises.value = templates.map(mapTemplateToExercise);
+    setTemplateLookup();
+
+    const workouts = Array.isArray(workoutResponse.data) ? workoutResponse.data : [];
+    const assignments = Array.isArray(exerciseResponse.data) ? exerciseResponse.data : [];
+    const { coachId: currentCoachId } = resolveUserContext();
+    const filteredWorkouts =
+      Number.isFinite(currentCoachId) && currentCoachId !== null
+        ? workouts.filter((workout) => workout.coach_id === currentCoachId)
+        : workouts;
+
+    const plansById = new Map();
+    const nextPlans = [];
+
+    filteredWorkouts.forEach((workout) => {
+      const plan = mapWorkoutToPlan(workout);
+      plansById.set(plan.id, plan);
+      nextPlans.push(plan);
+    });
+
+    assignments.forEach((assignment) => {
+      const plan = plansById.get(assignment.workout_id);
+      if (plan) {
+        plan.exercises.push(mapAssignmentToPlanExercise(assignment));
+      }
+    });
+
+    plans.value = nextPlans;
+    ensureSelectedPlan();
+  } catch (error) {
+    console.error("Failed to load plans", error);
+    const message =
+      error?.response?.data?.message ||
+      "Unable to load plans. Please refresh and try again.";
+    planLoadError.value = message;
+    exerciseLoadError.value = message;
+    plans.value = [];
+    availableExercises.value = [];
+  } finally {
+    setTemplateLookup();
+    plansLoading.value = false;
+    exercisesLoading.value = false;
+  }
+};
+
+const resetInlineExercise = () => {
   Object.assign(inlineExercise, {
     name: "",
     type: "",
     muscleGroup: "",
-    restTimer: 90,
-    notes: "",
   });
 };
-
-watch(addExerciseDialog, function(isOpen) {
-    if(!isOpen) {
-      selectedExerciseIds.value = [];
-      showInlineExerciseForm.value = false;
-      resetInlineExercise();
-      exerciseSearch.value = "";
-      exerciseFocusFilter.value = "all";
-      exerciseMutationError.value = null;
-      exerciseMutationPending.value = false;
-    }
-  });
 
 const toggleInlineExerciseForm = () => {
   exerciseMutationError.value = null;
   exerciseMutationPending.value = false;
-  if (showInlineExerciseForm.value) {
-    showInlineExerciseForm.value = false;
+  showInlineExerciseForm.value = !showInlineExerciseForm.value;
+  if (!showInlineExerciseForm.value) {
     resetInlineExercise();
-  } else {
-    showInlineExerciseForm.value = true;
   }
 };
 
-const createInlineExercise = async function() {
-  if(!inlineExercise.name.trim() || exerciseMutationPending.value) {
+const normalizeTemplateFields = (exercise) => {
+  const typeValue = (exercise.type || "").toString().trim().toLowerCase();
+  const muscleValue = (exercise.muscleGroup || "").toString().trim().toLowerCase();
+  return {
+    name: exercise.name.trim(),
+    type: typeValue || "other",
+    muscleGroup: muscleValue || "other",
+  };
+};
+
+const toTemplatePayload = (exercise) => ({
+  name: exercise.name,
+  type: exercise.type,
+  muscle_group: exercise.muscleGroup,
+});
+
+const createInlineExercise = async () => {
+  if (!inlineExercise.name.trim() || exerciseMutationPending.value) {
     return;
   }
 
-  const normalized = normalizeExerciseFields(inlineExercise);
-  const payload = toBackendPayload(normalized);
+  const normalized = normalizeTemplateFields(inlineExercise);
+  const payload = toTemplatePayload(normalized);
 
   try {
     exerciseMutationError.value = null;
     exerciseMutationPending.value = true;
     const response = await apiClient.post("exerciseTemplate", payload);
-    const createdExercise = mapTemplateToExercise(response.data, {
-      restTimer: normalized.restTimer,
-      notes: normalized.notes,
-    });
+    const createdExercise = mapTemplateToExercise(response.data);
     availableExercises.value.push(createdExercise);
+    setTemplateLookup();
     toggleInlineExerciseForm();
     selectedExerciseIds.value = Array.from(
       new Set([...selectedExerciseIds.value, createdExercise.id])
@@ -426,206 +347,437 @@ const createInlineExercise = async function() {
   }
 };
 
-const sortedExercises = computed(function() {
-  const term=exerciseSearch.value.trim().toLowerCase();
+const sortedExercises = computed(() => {
+  const term = exerciseSearch.value.trim().toLowerCase();
+  const focus = exerciseFocusFilter.value !== "all" ? exerciseFocusFilter.value : null;
 
-  const filterFocus=exerciseFocusFilter.value!=="all"? exerciseFocusFilter.value:null;
+  return availableExercises.value.filter((exercise) => {
+    const name = exercise.name.toLowerCase();
+    const type = exercise.type.toLowerCase();
+    const muscle = (exercise.muscleGroup || "").toLowerCase();
+    const notes = (exercise.notes || "").toLowerCase();
 
-  const filtered=availableExercises.value.filter(function(exercise) {
-    const name=exercise.name.toLowerCase();
-    const type=exercise.type.toLowerCase();
-    const muscle=(exercise.muscleGroup||"").toLowerCase();
-    const notes=(exercise.notes||"").toLowerCase();
+    const matchesSearch =
+      !term ||
+      name.includes(term) ||
+      type.includes(term) ||
+      muscle.includes(term) ||
+      notes.includes(term);
 
-    const matchesSearch=!term||name.includes(term)||type.includes(term)||muscle.includes(term)||notes.includes(term);
-
-    if(!matchesSearch)
+    if (!matchesSearch) {
       return false;
+    }
 
-    if(filterFocus&&muscle!==filterFocus) {
+    if (focus && muscle !== focus) {
       return false;
     }
 
     return true;
   });
-
-  return filtered;
 });
 
-const addExercisesToPlan = function() {
-  if(!selectedPlan.value||!selectedExerciseIds.value.length)
+const addExercisesToPlan = async () => {
+  const plan = selectedPlan.value;
+  if (!plan || !selectedExerciseIds.value.length || exerciseMutationPending.value) {
     return;
+  }
 
-  const planExercises=selectedPlan.value.exercises;
-  const existingIds=new Set(planExercises.map((exercise) => exercise.id));
-
-  selectedExerciseIds.value.forEach(function(exerciseId) {
-    const exercise=availableExercises.value.find(function(item) {
-      return item.id === exerciseId;
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    const requests = selectedExerciseIds.value.map(async (templateId) => {
+      const payload = {
+        workoutId: plan.id,
+        exerciseTemplateId: templateId,
+        notes: "",
+        restTimer: DEFAULT_REST_TIMER,
+      };
+      const response = await apiClient.post("exercise", payload);
+      plan.exercises.push(mapAssignmentToPlanExercise(response.data));
     });
-    if(exercise&&!existingIds.has(exercise.id)) {
-      planExercises.push({ ...exercise });
-      existingIds.add(exercise.id);
-    }
-  });
-
-  addExerciseDialog.value = false;
+    await Promise.all(requests);
+    addExerciseDialog.value = false;
+  } catch (error) {
+    console.error("Failed to add exercises to plan", error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to add the selected exercises. Please try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
 };
 
-const removeExerciseFromPlan = function(exerciseId) {
-  if(!selectedPlan.value)
+const removeExerciseFromPlan = async (assignmentId) => {
+  if (!assignmentId || exerciseMutationPending.value) {
     return;
-  selectedPlan.value.exercises=selectedPlan.value.exercises.filter(
-    function(item) {
-      return item.id!==exerciseId;
-    }
-  );
+  }
+
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    await apiClient.delete(`exercise/${assignmentId}`);
+    plans.value.forEach((plan) => {
+      plan.exercises = plan.exercises.filter(
+        (exercise) => exercise.assignmentId !== assignmentId
+      );
+    });
+  } catch (error) {
+    console.error("Failed to remove exercise", error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to remove the exercise. Please try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
 };
 
-const editExerciseDialog = ref(false);
-const editExercise = reactive({
-  id: null,
-  source: "library",
-  planType: null,
-  planId: null,
-  name: "",
-  type: "",
-  muscleGroup: "",
-  restTimer: 90,
-  notes: "",
-});
-
-const resetEditExercise = function() {
-  editExercise.id=null;
-  editExercise.source="library";
-  editExercise.planType=null;
-  editExercise.planId=null;
-  editExercise.name="";
-  editExercise.type="";
-  editExercise.muscleGroup="";
-  editExercise.restTimer=90;
-  editExercise.notes="";
+const resetEditExercise = () => {
+  editExercise.templateId = null;
+  editExercise.assignmentId = null;
+  editExercise.source = "library";
+  editExercise.planId = null;
+  editExercise.name = "";
+  editExercise.type = "";
+  editExercise.muscleGroup = "";
+  editExercise.restTimer = DEFAULT_REST_TIMER;
+  editExercise.notes = "";
 };
 
-const openLibraryExerciseEditor = function(exercise) {
+const openLibraryExerciseEditor = (exercise) => {
   exerciseMutationError.value = null;
   exerciseMutationPending.value = false;
-  editExercise.id = exercise.id;
+  editExercise.templateId = exercise.id;
+  editExercise.assignmentId = null;
   editExercise.source = "library";
-  editExercise.planType = null;
   editExercise.planId = null;
-  editExercise.name = exercise.name??"";
-  editExercise.type = exercise.type??"";
-  editExercise.muscleGroup = exercise.muscleGroup??"";
-  editExercise.restTimer = exercise.restTimer??0;
-  editExercise.notes = exercise.notes??"";
+  editExercise.name = exercise.name ?? "";
+  editExercise.type = exercise.type ?? "";
+  editExercise.muscleGroup = exercise.muscleGroup ?? "";
+  editExercise.restTimer = DEFAULT_REST_TIMER;
+  editExercise.notes = "";
   editExerciseDialog.value = true;
 };
 
-const openPlanExerciseEditor = function(planType, planId, exercise) {
+const openPlanExerciseEditor = (planId, exercise) => {
   exerciseMutationError.value = null;
   exerciseMutationPending.value = false;
-  editExercise.id = exercise.id;
+  editExercise.templateId = exercise.templateId;
+  editExercise.assignmentId = exercise.assignmentId;
   editExercise.source = "plan";
-  editExercise.planType = planType;
   editExercise.planId = planId;
   editExercise.name = exercise.name ?? "";
   editExercise.type = exercise.type ?? "";
   editExercise.muscleGroup = exercise.muscleGroup ?? "";
-  editExercise.restTimer = exercise.restTimer ?? 0;
+  editExercise.restTimer = exercise.restTimer ?? DEFAULT_REST_TIMER;
   editExercise.notes = exercise.notes ?? "";
   editExerciseDialog.value = true;
 };
 
-const applyExerciseUpdates = function(targetId, updates, options={ source: "library" }) {
-  if(options.source === "library") {
-    const exercise = availableExercises.value.find(function(item) {
-      return item.id === targetId;
+const updatePlanExercisesFromTemplate = (template) => {
+  plans.value.forEach((plan) => {
+    plan.exercises.forEach((exercise) => {
+      if (exercise.templateId === template.id) {
+        exercise.name = template.name;
+        exercise.type = template.type;
+        exercise.muscleGroup = template.muscleGroup;
+      }
     });
-    if(!exercise)
-      return;
-    Object.assign(exercise, updates);
-    updateExerciseAssignments(targetId, updates);
-  } else if(options.source === "plan" && options.planType && options.planId) {
-    const planCollection=getPlansByType(options.planType);
-    const plan=planCollection.find(function(item) {
-      return item.id === options.planId;
-    });
-    if(!plan)
-      return;
-    const exercise = plan.exercises.find(function(item) {
-      return item.id === targetId;
-    });
-    if(exercise) {
-      Object.assign(exercise, updates);
-    }
-  }
+  });
 };
 
-const updateExercise = async function() {
-  if(!editExercise.id||!editExercise.name.trim()) {
+const normalizeAssignmentFields = (exercise) => {
+  const restValue = Number(exercise.restTimer);
+  return {
+    restTimer: Number.isFinite(restValue) ? restValue : 0,
+    notes: exercise.notes?.trim() ?? "",
+  };
+};
+
+const applyAssignmentUpdates = (assignmentId, updates) => {
+  plans.value.forEach((plan) => {
+    const target = plan.exercises.find((exercise) => exercise.assignmentId === assignmentId);
+    if (target) {
+      Object.assign(target, updates);
+    }
+  });
+};
+
+const updateExercise = async () => {
+  if (!editExercise.templateId || exerciseMutationPending.value) {
     return;
   }
 
-  const updates=normalizeExerciseFields(editExercise);
-
-  if(editExercise.source === "library") {
-    if (exerciseMutationPending.value) {
-      return;
-    }
-    const payload = toBackendPayload(updates);
+  if (editExercise.source === "library") {
+    const normalized = normalizeTemplateFields(editExercise);
+    const payload = toTemplatePayload(normalized);
     try {
       exerciseMutationError.value = null;
       exerciseMutationPending.value = true;
-      await apiClient.put(`exerciseTemplate/${editExercise.id}`, payload);
-      applyExerciseUpdates(editExercise.id, updates, {
-        source: editExercise.source,
-        planType: editExercise.planType,
-        planId: editExercise.planId,
-      });
+      const response = await apiClient.put(
+        `exerciseTemplate/${editExercise.templateId}`,
+        payload
+      );
+      const updated = mapTemplateToExercise(response.data);
+      const index = availableExercises.value.findIndex((item) => item.id === updated.id);
+      if (index === -1) {
+        availableExercises.value.push(updated);
+      } else {
+        availableExercises.value[index] = updated;
+      }
+      setTemplateLookup();
+      updatePlanExercisesFromTemplate(updated);
       editExerciseDialog.value = false;
       resetEditExercise();
     } catch (error) {
-      console.error(`Failed to update exercise template ${editExercise.id}`, error);
+      console.error(`Failed to update exercise template ${editExercise.templateId}`, error);
       exerciseMutationError.value =
         error?.response?.data?.message ||
         "Unable to update the exercise. Please adjust the values and try again.";
     } finally {
       exerciseMutationPending.value = false;
     }
-  } else {
-    applyExerciseUpdates(editExercise.id, updates, {
-      source: editExercise.source,
-      planType: editExercise.planType,
-      planId: editExercise.planId,
+    return;
+  }
+
+  if (!editExercise.assignmentId) {
+    return;
+  }
+
+  const updates = normalizeAssignmentFields(editExercise);
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    await apiClient.put(`exercise/${editExercise.assignmentId}` , updates);
+    applyAssignmentUpdates(editExercise.assignmentId, {
+      restTimer: updates.restTimer,
+      notes: updates.notes,
     });
     editExerciseDialog.value = false;
     resetEditExercise();
+  } catch (error) {
+    console.error(`Failed to update exercise ${editExercise.assignmentId}`, error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to update the exercise. Please adjust the values and try again.";
+  } finally {
+    exerciseMutationPending.value = false;
   }
 };
 
-const deleteAvailableExercise = function(exerciseId) {
-  availableExercises.value=availableExercises.value.filter(
-    (exercise) => exercise.id!==exerciseId
-  );
-  removeExerciseAssignments(exerciseId);
-  selectedExerciseIds.value=selectedExerciseIds.value.filter((id) => id!==exerciseId);
-  if(editExerciseDialog.value && editExercise.id === exerciseId && editExercise.source === "library") {
-    editExerciseDialog.value = false;
-    resetEditExercise();
-  }
-};
-
-const confirmAvailableExerciseDeletion = function(exercise) {
-  if(!exercise)
+const deleteAvailableExercise = async (exerciseId) => {
+  if (exerciseMutationPending.value) {
     return;
-  const confirmation=window.confirm(
+  }
+  const assignmentIds = collectAssignmentIdsByTemplate(exerciseId);
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    for (const assignmentId of assignmentIds) {
+      await apiClient.delete(`exercise/${assignmentId}`);
+    }
+    await apiClient.delete(`exerciseTemplate/${exerciseId}`);
+    availableExercises.value = availableExercises.value.filter((exercise) => exercise.id !== exerciseId);
+    setTemplateLookup();
+    removePlanExercisesByTemplate(exerciseId);
+    selectedExerciseIds.value = selectedExerciseIds.value.filter((id) => id !== exerciseId);
+    if (
+      editExerciseDialog.value &&
+      editExercise.templateId === exerciseId &&
+      editExercise.source === "library"
+    ) {
+      editExerciseDialog.value = false;
+      resetEditExercise();
+    }
+  } catch (error) {
+    console.error(`Failed to delete exercise template ${exerciseId}`, error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to delete the exercise. Remove it from the plans and try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
+};
+
+const confirmAvailableExerciseDeletion = (exercise) => {
+  if (!exercise) return;
+  const confirmation = window.confirm(
     `Delete exercise "${exercise.name}" from the library? This will remove it from any plans using it.`
   );
-  if(confirmation) {
+  if (confirmation) {
     deleteAvailableExercise(exercise.id);
   }
 };
+
+const resetNewPlan = () => {
+  newPlan.focusArea = "";
+  newPlan.notes = "";
+  newPlan.expectedDate = "";
+  newPlan.date = "";
+};
+
+const resetEditPlan = () => {
+  editPlan.id = null;
+  editPlan.focusArea = "";
+  editPlan.notes = "";
+  editPlan.expectedDate = "";
+  editPlan.date = "";
+};
+
+const openEditPlan = (plan) => {
+  if (!plan) return;
+  planMutationError.value = null;
+  editPlan.id = plan.id;
+  editPlan.focusArea = plan.focusArea ?? "";
+  editPlan.notes = plan.notes ?? "";
+  editPlan.expectedDate = plan.expectedDate ?? "";
+  editPlan.date = plan.date ?? "";
+  editPlanDialog.value = true;
+};
+
+const applyPlanUpdates = (plan, updates) => {
+  plan.focusArea = updates.focusArea?.trim() ?? "";
+  plan.notes = updates.notes?.trim() ?? "";
+  plan.expectedDate = updates.expectedDate || "";
+  plan.date = updates.date || "";
+};
+
+const buildPlanPayload = (plan) => {
+  const ids = resolveUserContext();
+  if (!Number.isFinite(ids.userId)) {
+    return null;
+  }
+  return {
+    userId: ids.userId,
+    coachId: ids.coachId ?? ids.userId,
+    expectedDate: plan.expectedDate || null,
+    date: plan.date || null,
+    focusArea: plan.focusArea?.trim() ?? "",
+    notes: plan.notes?.trim() ?? "",
+  };
+};
+
+const createPlan = async () => {
+  if (!newPlan.focusArea.trim() || planMutationPending.value) {
+    return;
+  }
+
+  const payload = buildPlanPayload(newPlan);
+  if (!payload) {
+    planMutationError.value = "A numeric user ID is required to create plans.";
+    return;
+  }
+
+  try {
+    planMutationError.value = null;
+    planMutationPending.value = true;
+    const response = await apiClient.post("workout", payload);
+    const createdPlan = mapWorkoutToPlan(response.data);
+    plans.value.push(createdPlan);
+    selectedPlanId.value = createdPlan.id;
+    newPlanDialog.value = false;
+    resetNewPlan();
+  } catch (error) {
+    console.error("Failed to create plan", error);
+    planMutationError.value =
+      error?.response?.data?.message || "Unable to create the plan. Please try again.";
+  } finally {
+    planMutationPending.value = false;
+  }
+};
+
+const updatePlan = async () => {
+  if (!editPlan.id || !editPlan.focusArea.trim() || planMutationPending.value) {
+    return;
+  }
+
+  const plan = plans.value.find((item) => item.id === editPlan.id);
+  if (!plan) {
+    return;
+  }
+
+  const payload = buildPlanPayload(editPlan);
+  if (!payload) {
+    planMutationError.value = "A numeric user ID is required to update plans.";
+    return;
+  }
+
+  try {
+    planMutationError.value = null;
+    planMutationPending.value = true;
+    await apiClient.put(`workout/${editPlan.id}`, payload);
+    applyPlanUpdates(plan, editPlan);
+    ensureSelectedPlan();
+    editPlanDialog.value = false;
+    resetEditPlan();
+  } catch (error) {
+    console.error(`Failed to update plan ${editPlan.id}`, error);
+    planMutationError.value =
+      error?.response?.data?.message || "Unable to update the plan. Please try again.";
+  } finally {
+    planMutationPending.value = false;
+  }
+};
+
+const deletePlan = async (planId) => {
+  if (planMutationPending.value) {
+    return;
+  }
+
+  const plan = plans.value.find((item) => item.id === planId);
+  if (!plan) {
+    return;
+  }
+
+  try {
+    planMutationError.value = null;
+    planMutationPending.value = true;
+    if (plan.exercises.length) {
+      await Promise.all(
+        plan.exercises
+          .filter((exercise) => exercise.assignmentId)
+          .map((exercise) => apiClient.delete(`exercise/${exercise.assignmentId}`))
+      );
+    }
+    await apiClient.delete(`workout/${planId}`);
+    const index = plans.value.findIndex((item) => item.id === planId);
+    if (index !== -1) {
+      plans.value.splice(index, 1);
+    }
+    ensureSelectedPlan();
+    if (editPlanDialog.value && editPlan.id === planId) {
+      editPlanDialog.value = false;
+      resetEditPlan();
+    }
+  } catch (error) {
+    console.error(`Failed to delete plan ${planId}`, error);
+    planMutationError.value =
+      error?.response?.data?.message || "Unable to delete the plan. Please try again.";
+  } finally {
+    planMutationPending.value = false;
+  }
+};
+
+const confirmPlanDeletion = (plan) => {
+  if (!plan) return;
+  const confirmation = window.confirm(
+    `Delete workout #${plan.id}? This action cannot be undone.`
+  );
+  if (confirmation) {
+    deletePlan(plan.id);
+  }
+};
+
+watch(addExerciseDialog, (isOpen) => {
+  if (!isOpen) {
+    selectedExerciseIds.value = [];
+    showInlineExerciseForm.value = false;
+    resetInlineExercise();
+    exerciseSearch.value = "";
+    exerciseFocusFilter.value = "all";
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = false;
+  }
+});
 
 watch(editExerciseDialog, (isOpen) => {
   if (!isOpen) {
@@ -641,48 +793,77 @@ watch(editExerciseDialog, (isOpen) => {
     <v-row align="stretch" justify="center" no-gutters>
       <v-col cols="12" lg="3" class="pr-lg-4">
         <v-card class="h-100 d-flex flex-column">
-          <v-card-title class="d-flex align-center">
-            Exercise Plans
-            <v-spacer />
-            <v-btn icon variant="text" color="primary" @click="newPlanDialog = true">
-              <v-icon>mdi-plus</v-icon>
+          <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
+            <span class="text-h6 text-sm-h5">Exercise Plans</span>
+            <v-btn
+              variant="tonal"
+              color="primary"
+              size="small"
+              prepend-icon="mdi-plus"
+              class="text-none"
+              @click="newPlanDialog = true"
+            >
+              Create Plan
             </v-btn>
           </v-card-title>
 
           <v-divider />
 
           <v-card-text class="flex-grow-1 overflow-y-auto pr-2">
-            <v-list density="compact" nav>
-              <template v-for="section in planSections" :key="section.type">
-                <v-subheader class="text-uppercase font-weight-medium">
-                  {{ section.label }}
-                </v-subheader>
+            <v-alert
+              v-if="planLoadError"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
+              {{ planLoadError }}
+            </v-alert>
+            <div v-else-if="plansLoading" class="d-flex justify-center py-6">
+              <v-progress-circular indeterminate color="primary" />
+            </div>
+            <template v-else>
+              <v-list v-if="plans.length" density="compact" nav>
                 <v-list-item
-                  v-for="plan in section.plans"
+                  v-for="plan in plans"
                   :key="plan.id"
-                  :active="selectedPlanKey.type === section.type && selectedPlanKey.id === plan.id"
+                  :active="selectedPlanId === plan.id"
                   rounded
-                  @click= "selectedPlanKey.type = section.type; selectedPlanKey.id = plan.id;" >
-                  <v-list-item-title>{{ plan.name }}</v-list-item-title>
+                  class="mb-2"
+                  @click="selectedPlanId = plan.id"
+                >
+                  <v-list-item-title class="font-weight-medium">
+                    {{ plan.focusArea }}
+                  </v-list-item-title>
                   <v-list-item-subtitle>
-                    {{ plan.focusArea || "General focus" }}
+                    {{ plan.notes || "No notes yet" }}
                   </v-list-item-subtitle>
                 </v-list-item>
-              </template>
-            </v-list>
+              </v-list>
+              <v-alert
+                v-else
+                type="info"
+                variant="tonal"
+                density="comfortable"
+              >
+                No workouts yet. Create one to get started.
+              </v-alert>
+            </template>
           </v-card-text>
         </v-card>
       </v-col>
 
       <v-col cols="12" lg="6" class="px-lg-4 mt-6 mt-lg-0">
         <v-card class="h-100">
-          <template v-if="selectedPlan">
+          <template v-if="plansLoading">
+            <v-card-text class="text-center py-12">
+              <v-progress-circular indeterminate color="primary" />
+              <p class="text-body-2 mt-4">Loading plans...</p>
+            </v-card-text>
+          </template>
+          <template v-else-if="selectedPlan">
             <v-card-title class="d-flex flex-wrap align-start">
               <div class="flex-grow-1 d-flex flex-column pr-4">
-                <span class="text-h5">{{ selectedPlan.name }}</span>
-                <span class="text-subtitle-2 text-medium-emphasis">
-                  {{ selectedPlan.focusArea || "General focus" }}
-                </span>
+                <span class="text-h5">{{ selectedPlan.focusArea }}</span>
               </div>
               <div class="d-flex align-center mt-3 mt-sm-0">
                 <v-btn
@@ -691,7 +872,8 @@ watch(editExerciseDialog, (isOpen) => {
                   size="small"
                   class="mr-2"
                   prepend-icon="mdi-pencil"
-                  @click="openEditPlan(selectedPlan, selectedPlanKey.type)"
+                  :disabled="planMutationPending"
+                  @click="openEditPlan(selectedPlan)"
                 >
                   Edit
                 </v-btn>
@@ -700,7 +882,8 @@ watch(editExerciseDialog, (isOpen) => {
                   color="error"
                   size="small"
                   prepend-icon="mdi-delete"
-                  @click="confirmPlanDeletion(selectedPlan, selectedPlanKey.type)"
+                  :disabled="planMutationPending"
+                  @click="confirmPlanDeletion(selectedPlan)"
                 >
                   Delete
                 </v-btn>
@@ -708,13 +891,21 @@ watch(editExerciseDialog, (isOpen) => {
             </v-card-title>
             <v-divider />
             <v-card-text>
+              <v-alert
+                v-if="planMutationError"
+                type="error"
+                variant="tonal"
+                class="mb-4"
+              >
+                {{ planMutationError }}
+              </v-alert>
               <v-row>
-                <v-col cols="12" md="7">
-                  <p class="text-body-2 mb-4">
-                    {{ selectedPlan.description || "Add notes to describe this plan." }}
+                <v-col cols="12" md="6">
+                  <p class="text-body-2 mb-2">
+                    <strong>Expected Date:</strong> {{ formatDateLabel(selectedPlan.expectedDate) }}
                   </p>
                 </v-col>
-                <v-col cols="12" md="5">
+                <v-col cols="12" md="6">
                   <v-alert
                     v-if="selectedPlan.notes"
                     border="start"
@@ -723,6 +914,14 @@ watch(editExerciseDialog, (isOpen) => {
                     density="comfortable"
                   >
                     {{ selectedPlan.notes }}
+                  </v-alert>
+                  <v-alert
+                    v-else
+                    variant="tonal"
+                    type="info"
+                    density="comfortable"
+                  >
+                    No notes have been added for this workout.
                   </v-alert>
                 </v-col>
               </v-row>
@@ -737,11 +936,20 @@ watch(editExerciseDialog, (isOpen) => {
                     variant="tonal"
                     size="small"
                     prepend-icon="mdi-plus"
+                    :disabled="exerciseMutationPending"
                     @click="addExerciseDialog = true"
                   >
                     Add Exercises
                   </v-btn>
                 </div>
+                <v-alert
+                  v-if="exerciseMutationError && !addExerciseDialog && !editExerciseDialog"
+                  type="error"
+                  variant="tonal"
+                  class="mb-4"
+                >
+                  {{ exerciseMutationError }}
+                </v-alert>
                 <v-alert v-if="!selectedPlan.exercises.length" variant="tonal" type="info">
                   No exercises have been added yet. Use the Add Exercises button to include one.
                 </v-alert>
@@ -749,7 +957,7 @@ watch(editExerciseDialog, (isOpen) => {
                 <v-expansion-panels v-else>
                   <v-expansion-panel
                     v-for="exercise in selectedPlan.exercises"
-                    :key="exercise.id"
+                    :key="exercise.assignmentId || exercise.templateId"
                   >
                     <v-expansion-panel-title>
                       <div class="d-flex flex-column">
@@ -772,14 +980,16 @@ watch(editExerciseDialog, (isOpen) => {
                             color="primary"
                             variant="text"
                             class="mb-2"
-                            @click="openPlanExerciseEditor(selectedPlanKey.type, selectedPlan.id, exercise)"
+                            :disabled="exerciseMutationPending"
+                            @click="openPlanExerciseEditor(selectedPlan.id, exercise)"
                           >
                             Edit
                           </v-btn>
                           <v-btn
                             color="error"
                             variant="text"
-                            @click="removeExerciseFromPlan(exercise.id)"
+                            :disabled="exerciseMutationPending"
+                            @click="removeExerciseFromPlan(exercise.assignmentId)"
                           >
                             Remove
                           </v-btn>
@@ -848,24 +1058,6 @@ watch(editExerciseDialog, (isOpen) => {
                   density="comfortable"
                   class="mb-3"
                 />
-                <v-text-field
-                  v-model="inlineExercise.restTimer"
-                  label="Rest timer (seconds)"
-                  type="number"
-                  min="0"
-                  prepend-inner-icon="mdi-timer-outline"
-                  density="comfortable"
-                  class="mb-3"
-                />
-                <v-textarea
-                  v-model="inlineExercise.notes"
-                  label="Notes"
-                  rows="3"
-                  auto-grow
-                  prepend-inner-icon="mdi-note-text"
-                  density="comfortable"
-                  class="mb-3"
-                />
                 <div class="d-flex justify-end mt-2">
                   <v-btn variant="text" @click="toggleInlineExerciseForm">
                     Cancel
@@ -877,7 +1069,7 @@ watch(editExerciseDialog, (isOpen) => {
                     :loading="exerciseMutationPending"
                     :disabled="exerciseMutationPending"
                   >
-                    Save Exercise
+                    Create Exercise
                   </v-btn>
                 </div>
               </v-form>
@@ -940,9 +1132,6 @@ watch(editExerciseDialog, (isOpen) => {
                     </v-list-item-subtitle>
                     <template #append>
                       <div class="d-flex align-center">
-                        <v-chip size="x-small" color="primary" variant="outlined" class="mr-2">
-                          Rest {{ exercise.restTimer }}s
-                        </v-chip>
                         <v-btn
                           icon
                           variant="text"
@@ -989,7 +1178,8 @@ watch(editExerciseDialog, (isOpen) => {
           <v-btn variant="text" @click="addExerciseDialog = false">Cancel</v-btn>
           <v-btn
             color="primary"
-            :disabled="!selectedExerciseIds.length"
+            :disabled="!selectedExerciseIds.length || exerciseMutationPending"
+            :loading="exerciseMutationPending"
             @click="addExercisesToPlan"
           >
             Add to Plan
@@ -1017,10 +1207,10 @@ watch(editExerciseDialog, (isOpen) => {
               variant="tonal"
               class="mb-4"
             >
-              Changes apply only within this plan.
+              Template fields are locked here. Adjust the rest timer or notes for this plan.
             </v-alert>
             <v-alert
-              v-if="exerciseMutationError && editExercise.source === 'library'"
+              v-if="exerciseMutationError"
               type="error"
               variant="tonal"
               class="mb-4"
@@ -1031,6 +1221,7 @@ watch(editExerciseDialog, (isOpen) => {
               v-model="editExercise.name"
               label="Exercise name"
               prepend-inner-icon="mdi-dumbbell"
+              :disabled="editExercise.source === 'plan'"
               required
             />
             <v-select
@@ -1038,25 +1229,33 @@ watch(editExerciseDialog, (isOpen) => {
               :items="['Strength', 'Cardio', 'Mobility', 'Other']"
               label="Type"
               prepend-inner-icon="mdi-format-list-bulleted"
+              :disabled="editExercise.source === 'plan'"
             />
             <v-text-field
               v-model="editExercise.muscleGroup"
               label="Muscle group"
               prepend-inner-icon="mdi-dna"
+              :disabled="editExercise.source === 'plan'"
             />
             <v-text-field
+              v-if="editExercise.source === 'plan'"
               v-model="editExercise.restTimer"
               label="Rest timer (seconds)"
               type="number"
               min="0"
               prepend-inner-icon="mdi-timer-outline"
+              density="comfortable"
+              class="mt-3"
             />
             <v-textarea
+              v-if="editExercise.source === 'plan'"
               v-model="editExercise.notes"
               label="Notes"
               rows="3"
               auto-grow
               prepend-inner-icon="mdi-note-text"
+              density="comfortable"
+              class="mt-3"
             />
             <v-card-actions class="mt-2">
               <v-spacer />
@@ -1082,44 +1281,48 @@ watch(editExerciseDialog, (isOpen) => {
         <v-card-title>Create New Plan</v-card-title>
         <v-card-text>
           <v-form @submit.prevent="createPlan">
-            <v-radio-group
-              v-model="newPlan.type"
-              label="Plan type"
-              inline
+            <v-alert
+              v-if="planMutationError && newPlanDialog"
+              type="error"
+              variant="tonal"
               class="mb-4"
             >
-              <v-radio label="Team" value="team" />
-              <v-radio label="Individual" value="individual" />
-            </v-radio-group>
-            <v-text-field
-              v-model="newPlan.name"
-              label="Plan name"
-              prepend-inner-icon="mdi-file-document-edit"
-              required
-            />
+              {{ planMutationError }}
+            </v-alert>
             <v-text-field
               v-model="newPlan.focusArea"
               label="Focus area"
               prepend-inner-icon="mdi-crosshairs-gps"
-            />
-            <v-textarea
-              v-model="newPlan.description"
-              label="Description"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-text"
+              required
             />
             <v-textarea
               v-model="newPlan.notes"
-              label="Coach notes"
-              rows="2"
+              label="Notes"
+              rows="3"
               auto-grow
               prepend-inner-icon="mdi-note-outline"
             />
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="newPlan.expectedDate"
+                  label="Expected date"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-clock"
+                />
+              </v-col>
+            </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
               <v-btn variant="text" @click="newPlanDialog = false">Cancel</v-btn>
-              <v-btn type="submit" color="primary">Create</v-btn>
+              <v-btn
+                type="submit"
+                color="primary"
+                :disabled="planMutationPending"
+                :loading="planMutationPending"
+              >
+                Create
+              </v-btn>
             </v-card-actions>
           </v-form>
         </v-card-text>
@@ -1131,44 +1334,49 @@ watch(editExerciseDialog, (isOpen) => {
         <v-card-title>Edit Plan</v-card-title>
         <v-card-text>
           <v-form @submit.prevent="updatePlan">
-            <v-chip
-              class="mb-4 text-uppercase"
-              color="primary"
+            <v-alert
+              v-if="planMutationError && editPlanDialog"
+              type="error"
               variant="tonal"
+              class="mb-4"
             >
-              {{ editPlan.type === "team" ? "Team Plan" : "Individual Plan" }}
-            </v-chip>
-            <v-text-field
-              v-model="editPlan.name"
-              label="Plan name"
-              prepend-inner-icon="mdi-file-document-edit"
-              required
-            />
+              {{ planMutationError }}
+            </v-alert>
             <v-text-field
               v-model="editPlan.focusArea"
               label="Focus area"
               prepend-inner-icon="mdi-crosshairs-gps"
-            />
-            <v-textarea
-              v-model="editPlan.description"
-              label="Description"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-text"
+              required
             />
             <v-textarea
               v-model="editPlan.notes"
-              label="Coach notes"
-              rows="2"
+              label="Notes"
+              rows="3"
               auto-grow
               prepend-inner-icon="mdi-note-outline"
             />
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="editPlan.expectedDate"
+                  label="Expected date"
+                  type="date"
+                  prepend-inner-icon="mdi-calendar-clock"
+                />
+              </v-col>
+
+            </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
               <v-btn variant="text" @click="editPlanDialog = false; resetEditPlan();">
                 Cancel
               </v-btn>
-              <v-btn type="submit" color="primary" :disabled="!editPlan.name">
+              <v-btn
+                type="submit"
+                color="primary"
+                :disabled="!editPlan.focusArea || planMutationPending"
+                :loading="planMutationPending"
+              >
                 Save
               </v-btn>
             </v-card-actions>
