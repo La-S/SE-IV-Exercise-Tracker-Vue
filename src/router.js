@@ -14,6 +14,10 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     {
+      path: "/",
+      redirect: "/login",
+    },
+    {
       path: "/coach",
       component: CoachLayout,
       children: [
@@ -51,9 +55,8 @@ const router = createRouter({
       component: Login,
     },
     {
-  
       path: "/:pathMatch(.*)*",
-      redirect: "/dashboard",
+      redirect: "/login",
     },
   ],
 });
