@@ -117,12 +117,13 @@ const parseNumericId = (value) => {
   return Number.isFinite(numberValue) ? numberValue : null;
 };
 
-const fallbackUserId = parseNumericId(import.meta.env.VITE_DEFAULT_USER_ID);
 
 const resolveUserContext = () => {
   const stored = Utils.getStore("user") || {};
-  const userId = parseNumericId(stored.userId ?? stored.id) ?? fallbackUserId;
-  const coachId = parseNumericId(stored.coachId) ?? userId ?? fallbackUserId;
+  const rawUserId = stored.userId ?? stored.user_id ?? stored.id;
+  const userId = parseNumericId(rawUserId);
+  const rawCoachId = stored.coachId ?? stored.coach_id;
+  const coachId = parseNumericId(rawCoachId) ?? userId; 
   return { userId, coachId };
 };
 
