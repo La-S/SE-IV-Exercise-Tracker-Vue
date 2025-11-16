@@ -4,21 +4,15 @@ import apiClient from "../services/services";
 
 const yourTeams = ref([]);
 
-const otherTeams = ref([
-]);
+const otherTeams = ref([]);
 
-let selectedTeam = ref(null);
+const selectedTeam = ref(null);
 
-const availableAthletes = ref([
-  {
-    id: 501,
-    name: "Lance Skinner",
-  },
-  {
-    id: 502,
-    name: "Gus Cordero",
-  },
-]);
+const availableAthletes = ref([]);
+
+const teamCreationError = ref(null);
+const teamUpdateError = ref(null);
+const addAthletesError = ref(null);
 
 const teamSections = computed(() => [
   { label: "Your Teams", type: "team", teams: yourTeams.value },
@@ -27,70 +21,31 @@ const teamSections = computed(() => [
 
 const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
 
-const getAthletesOnTeam = async () => { // todo all of these should be in a service file
-  console.log("getAthletesOnTeam")
+const getAthletesOnTeam = async () => {
   if (!selectedTeam) return;
 
-  // const teamAthletes = selectedTeam.value.athletes;
-  // const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
-
-  try {
-    // exerciseMutationError.value = null;
-    // exerciseMutationPending.value = true;
-    const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
-    if (response.status != 200){
-      throw Error("status not 200.")
-    }
-    selectedTeam.value.athletes = []
-    response.data.forEach((athlete) =>{
-      selectedTeam.value.athletes.push({id: athlete.id, name: athlete.first_name})
-    })
-    console.log(selectedTeam.value.athletes)
-    // selectedAthleteIds.value = []
-    // addExerciseDialog.value = false;
-  } catch (error) {
-    // console.error("Failed to create exercise template", error);
-    // exerciseMutationError.value =
-    //   error?.response?.data?.message ||
-    //   "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    // exerciseMutationPending.value = false;
+  const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
+  if (response.status != 200){
+    throw Error("Status not 200.")
   }
+  selectedTeam.value.athletes = []
+  response.data.forEach((athlete) =>{
+    selectedTeam.value.athletes.push({id: athlete.id, name: athlete.first_name})
+  })
 };
 
-const getAllAthletes = async () => { // todo all of these should be in a service file
-  console.log("getAllAthletes")
-
-  // const teamAthletes = selectedTeam.value.athletes;
-  // const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
-
-  try {
-    // exerciseMutationError.value = null;
-    // exerciseMutationPending.value = true;
-    const response = await apiClient.get(`users`);
-    if (response.status != 200){
-      throw Error("status not 200.")
-    }
-    availableAthletes.value = []
-    response.data.forEach((athlete) =>{
-      availableAthletes.value.push({id: athlete.id, name: athlete.first_name})
-    })
-    console.log(availableAthletes.value)
-
-    // selectedAthleteIds.value = []
-    // addExerciseDialog.value = false;
-  } catch (error) {
-    // console.error("Failed to create exercise template", error);
-    // exerciseMutationError.value =
-    //   error?.response?.data?.message ||
-    //   "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    // exerciseMutationPending.value = false;
+const getAllAthletes = async () => {
+  const response = await apiClient.get(`users`);
+  if (response.status != 200){
+    throw Error("status not 200.")
   }
+  availableAthletes.value = []
+  response.data.forEach((athlete) =>{
+    availableAthletes.value.push({id: athlete.id, name: athlete.first_name})
+  })
 };
 
 const teamSelected = (type, teamId) => {
-  console.log("teamSelected", type, teamId)
   if (!selectedTeamKey.id) {
     selectedTeam.value = null;
   }
@@ -98,35 +53,25 @@ const teamSelected = (type, teamId) => {
   selectedTeamKey.id = teamId;
   selectedTeamKey.type = type;
   selectedTeam.value = collection.find((team) => team.id === selectedTeamKey.id) ?? null;
-  console.log(selectedTeam.value)
-    console.log("getAthletesOnTeam")
 
-  getAthletesOnTeam()
+  try {
+    getAthletesOnTeam()
+  } catch (e) {
+    console.log("Error getting the athletes on the team.")
+  }
 }
 
 const loadTeams = async () => {
-  // exercisesLoading.value = true;
-  // exerciseLoadError.value = null;
-  try {
-    console.log("getting some teams")
-    const response = await apiClient.get("team");
-    const data = response.data;
-    if (Array.isArray(data)) {
-      yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
-    } else {
-      yourTeams.value = [];
-    }
-  } catch (error) {
-    // console.error("Failed to load exercise templates", error);
-    // exerciseLoadError.value =
-    //   "Unable to load available exercises. Please try again later.";
-  } finally {
-    // exercisesLoading.value = false;
+  const response = await apiClient.get("team");
+  const data = response.data;
+  if (Array.isArray(data)) {
+    yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
+  } else {
+    yourTeams.value = [];
   }
 };
 
 onMounted(() => {
-  console.log("load some teams")
   loadTeams();
   getAllAthletes();
 });
@@ -140,12 +85,8 @@ watch(
       }
       return
     };
-    const defaultTeam =
-      yourTeams.value[0] ??
-      otherTeams.value[0] ??
-      null;
+    const defaultTeam = yourTeams.value[0] ?? otherTeams.value[0];
     if (defaultTeam) {
-      // feels sketchy but it works
       selectedTeamKey.type = yourTeams.value.find((team) => team.id === defaultTeam.id)
         ? "team"
         : "others";
@@ -158,6 +99,8 @@ watch(
 
 const newTeamDialog = ref(false);
 const editTeamDialog = ref(false);
+const addAthletesToTeamDialog = ref(false);
+const selectedAthleteIds = ref([]);
 const newTeam = reactive({
   id: undefined,
   type: "team",
@@ -181,8 +124,6 @@ const createTeam = async function() {
   const payload = {"name": newTeam.name.trim()}
 
   try {
-    // exerciseMutationError.value = null;
-    // exerciseMutationPending.value = true;
     const response = await apiClient.post("team", payload);
     const createdTeam = {
       "id": response.data.id,
@@ -192,66 +133,31 @@ const createTeam = async function() {
     yourTeams.value.push(createdTeam);
     resetNewTeam();
     newTeamDialog.value = false
+    teamCreationError.value = null;
   } catch (error) {
-    // console.error("Failed to create exercise template", error);
-    // exerciseMutationError.value =
-    //   error?.response?.data?.message ||
-    //   "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    // exerciseMutationPending.value = false;
+    console.error("Failed to create exercise team", error);
+    teamCreationError.value = error?.response?.data?.message || "Unable to create the Team. Please check the name or try again later.";
   }
 };
 
 const updateTeam = async function() {
-  if (!newTeam.name.trim()) {
-    return;
-  }
+  if (!newTeam.name.trim()) { return; }
 
   const payload = {"name": newTeam.name.trim()}
-  const idToUpdate = newTeam.id;
 
   try {
-    // exerciseMutationError.value = null;
-    // exerciseMutationPending.value = true;
-    const response = await apiClient.put(`team/${idToUpdate}`, payload);
+    const response = await apiClient.put(`team/${newTeam.id}`, payload);
     if (response.status != 200) {
       throw Error("Team failed to be created!")
     }
     selectedTeam.value.name = newTeam.name.trim();
     resetNewTeam();
     editTeamDialog.value = false
+    teamUpdateError.value = null;
   } catch (error) {
-    // console.error("Failed to create exercise template", error);
-    // exerciseMutationError.value =
-    //   error?.response?.data?.message ||
-    //   "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    // exerciseMutationPending.value = false;
+    console.error("Failed to update team", error);
+    teamUpdateError.value = error?.response?.data?.message || "Unable to save the exercise. Please check the details and try again.";
   }
-};
-
-const newExercise = reactive({
-  name: "",
-  type: "",
-  muscleGroup: "",
-  restTimer: 90,
-  notes: "",
-});
-
-
-const appendAthlete = (exercise) => {
-  const restTimerValue = Number(exercise.restTimer);
-  const createdAthlete = {
-    id: Date.now(),
-    name: exercise.name.trim(),
-    type: exercise.type.trim() || "General",
-    muscleGroup: exercise.muscleGroup.trim(),
-    restTimer: Number.isFinite(restTimerValue) ? restTimerValue : 0,
-    notes: exercise.notes.trim(),
-  };
-
-  availableAthletes.value.push(createdAthlete);
-  return createdAthlete;
 };
 
 function isAthleteOnTeam(athleteId) {
@@ -263,25 +169,6 @@ function getCopyOfAthletesForTeam() {
   return JSON.parse(JSON.stringify(selectedTeam.value.athletes));
 }
 
-const createAthlete = () => {
-  if (!newExercise.name.trim()) {
-    return;
-  }
-
-  appendAthlete(newExercise);
-
-  Object.assign(newExercise, {
-    name: "",
-    type: "",
-    muscleGroup: "",
-    restTimer: 90,
-    notes: "",
-  });
-};
-
-const addExerciseDialog = ref(false);
-const selectedAthleteIds = ref([]);
-
 const addAthletesToTeam = async () => {
   if (!selectedTeam || !selectedAthleteIds.value.length) return;
 
@@ -289,13 +176,10 @@ const addAthletesToTeam = async () => {
   const existingAthletes = new Set(teamAthletes.map((athletes) => athletes.id));
 
   try {
-    // exerciseMutationError.value = null;
-    // exerciseMutationPending.value = true;
     const response = await apiClient.post(`team/${selectedTeam.value.id}/users`, selectedAthleteIds.value);
     if (response.status != 200){
       throw Error("status not 200.")
     }
-    console.log(response)
     // add the athletes to the list.
     selectedAthleteIds.value.forEach((exerciseId) => {
       const athlete = availableAthletes.value.find((item) => item.id === exerciseId);
@@ -306,14 +190,11 @@ const addAthletesToTeam = async () => {
     });
 
     selectedAthleteIds.value = []
-    addExerciseDialog.value = false;
+    addAthletesToTeamDialog.value = false;
+    addAthletesError.value = null;
   } catch (error) {
     console.error("Failed to add athlete to team", error);
-    // exerciseMutationError.value =
-    //   error?.response?.data?.message ||
-    //   "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    // exerciseMutationPending.value = false;
+    addAthletesError.value = error?.response?.data?.message || "Unable to add the athletes to your team. Please check your connection and try again later.";
   }
 };
 
@@ -484,7 +365,7 @@ const removeAthleteFromTeam = async (athleteId) => {
                     variant="tonal"
                     size="small"
                     prepend-icon="mdi-plus"
-                    @click="addExerciseDialog = true"
+                    @click="addAthletesToTeamDialog = true"
                   >
                     Add Athlete
                   </v-btn>
@@ -543,7 +424,7 @@ const removeAthleteFromTeam = async (athleteId) => {
       </v-col>
     </v-row>
 
-    <v-dialog v-model="addExerciseDialog" max-width="560">
+    <v-dialog v-model="addAthletesToTeamDialog" max-width="560">
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between">
           <span>Select Athletes to add to '{{ selectedTeam.name }}'</span>
@@ -576,10 +457,14 @@ const removeAthleteFromTeam = async (athleteId) => {
           <v-alert v-else type="info" variant="tonal">
             No more athletes are available. Tell your athlete to create an account.
           </v-alert>
+          <v-alert v-if="addAthletesError" type="error" variant="tonal">
+           {{addAthletesError}}
+          </v-alert>
         </v-card-text>
+        
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="addExerciseDialog = false">Cancel</v-btn>
+          <v-btn variant="text" @click="addAthletesToTeamDialog = false">Cancel</v-btn>
           <v-btn
             color="primary"
             :disabled="!selectedAthleteIds.length"
@@ -608,6 +493,9 @@ const removeAthleteFromTeam = async (athleteId) => {
               <v-btn type="submit" color="primary">Create</v-btn>
             </v-card-actions>
           </v-form>
+          <v-alert v-if="teamCreationError" type="error" variant="tonal">
+           {{teamCreationError}}
+          </v-alert>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -629,6 +517,9 @@ const removeAthleteFromTeam = async (athleteId) => {
               <v-btn type="submit" color="primary">Update</v-btn>
             </v-card-actions>
           </v-form>
+          <v-alert v-if="teamUpdateError" type="error" variant="tonal">
+           {{teamUpdateError}}
+          </v-alert>
         </v-card-text>
       </v-card>
     </v-dialog>
