@@ -30,7 +30,7 @@ const getAthletesOnTeam = async () => {
   }
   selectedTeam.value.athletes = []
   response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, name: athlete.first_name})
+    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.lastName, email: athlete.email})
   })
 };
 
@@ -41,7 +41,7 @@ const getAllAthletes = async () => {
   }
   availableAthletes.value = []
   response.data.forEach((athlete) =>{
-    availableAthletes.value.push({id: athlete.id, name: athlete.first_name})
+    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.lastName, email: athlete.email})
   })
 };
 
@@ -198,16 +198,7 @@ const addAthletesToTeam = async () => {
   }
 };
 
-function LOGSTUFF() {
-  console.log("HERE")
-  console.log(selectedTeam)
-  console.log(selectedTeam.value.id)
-  console.log(selectedTeam.value)
-  console.log(newTeam)
-}
-
 const deleteTeam = async (team) => {
-  console.log("need to delete da team")
   try {
     let response = await apiClient.delete(`team/${team.id}`);
     if (response.status != 200) {
@@ -229,8 +220,6 @@ const deleteTeam = async (team) => {
     }
   } catch (error) {
     console.error(`Failed to delete plan ${team.id}`, error);
-  } finally {
-    //
   }
 };
 
@@ -245,28 +234,21 @@ const confirmTeamDeletion = (team) => {
   }
 };
 
-const removeAthleteFromTeam = async (athleteId) => {
+const removeAthleteFromTeam = async (athleteId) => { // todo maybe add warning if this fails.
   if (!selectedTeam) return;
 
-  try {
-    const response = await apiClient.delete(`team/${selectedTeam.value.id}/users`, {data: [athleteId]});
-    console.log(response.statusText)
-    console.log(response.status)
-    if (response.status != 200){
-      throw Error("status not 200.")
-    }
-    selectedTeam.value.athletes = selectedTeam.value.athletes.filter(
-      (item) => item.id !== athleteId
-    );
-  } catch (error) {
-    console.error("Failed to add athlete to team", error);
-    // exerciseMutationError.value =
-    //   error?.response?.data?.message ||
-    //   "Unable to save the exercise. Please check the details and try again.";
-  } finally {
-    // exerciseMutationPending.value = false;
+  const response = await apiClient.delete(`team/${selectedTeam.value.id}/users`, {data: [athleteId]});
+  if (response.status != 200){
+    throw Error("status not 200.")
   }
+  selectedTeam.value.athletes = selectedTeam.value.athletes.filter(
+    (item) => item.id !== athleteId
+  );
 };
+
+const email = (email) => {
+  window.location.href = `mailto:${email}`
+}
 </script>
 
 <template>
@@ -330,7 +312,7 @@ const removeAthleteFromTeam = async (athleteId) => {
                   size="small"
                   class="mr-2"
                   prepend-icon="mdi-pencil"
-                  @click="newTeam.name = selectedTeam.name; newTeam.type = selectedTeam.type; newTeam.id = selectedTeam.id; LOGSTUFF(); editTeamDialog = true"
+                  @click="newTeam.name = selectedTeam.name; newTeam.type = selectedTeam.type; newTeam.id = selectedTeam.id;  editTeamDialog = true"
                 >
                   Edit
                 </v-btn>
@@ -381,14 +363,14 @@ const removeAthleteFromTeam = async (athleteId) => {
                   >
                     <v-expansion-panel-title>
                       <div class="d-flex flex-column">
-                        <span class="font-weight-medium">{{ athlete.name }}</span>
+                        <span class="font-weight-medium">{{ athlete.firstName }} {{ athlete.lastName }}</span>
                       </div>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
                       <v-btn
                         color="primary"
                         variant="text"
-                        @click=""
+                        @click="email(athlete.email)"
                       >
                         Contact Athlete
                       </v-btn>
@@ -448,7 +430,7 @@ const removeAthleteFromTeam = async (athleteId) => {
                         @click.stop="toggle"
                       />
                     </template>
-                    <v-list-item-title>{{ athlete.name }}</v-list-item-title>
+                    <v-list-item-title>{{ athlete.firstName }} {{ athlete.lastName }}</v-list-item-title>
                   </v-list-item>
                 </v-item>
               </template>
