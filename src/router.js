@@ -33,6 +33,11 @@ const router = createRouter({
           name: "exercise-plans",
           component: ExercisePlans,
         },
+        {
+          path: "teams",
+          name: "teams",
+          component: Teams,
+        },
       ],
     },
     {
@@ -50,11 +55,6 @@ const router = createRouter({
           component: CurrentWorkout,
         },
       ],
-    },
-    {
-      path: "/teams",
-      name: "teams",
-      component: Teams,
     },
     {
       path: "/login",
