@@ -27,6 +27,8 @@ jobs:
           echo VITE_APP_API_URL="$VITE_APP_API_URL" >> .env
           echo VITE_APP_CLIENT_URL=tutorial.eaglesoftwareteam.com >> .env
           echo VITE_APP_SITE_URL=tutorial.eaglesoftwareteam.com >> .env
+          touch .htaccess
+          echo $HTACCESS > .htaccess
 
       - run: npm install
       - run: npm run build
@@ -41,3 +43,4 @@ jobs:
           REMOTE_HOST: "project3.eaglesoftwareteam.com"
           REMOTE_USER: ubuntu
           TARGET: "/var/www/html/seiv2025/p3/t3"
+
