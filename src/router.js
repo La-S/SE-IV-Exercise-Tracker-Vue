@@ -13,7 +13,7 @@ import AthleteLayout from "./layouts/AthleteLayout.vue";
 
 
 const router = createRouter({
-  history: createWebHistory("/login"),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/",
