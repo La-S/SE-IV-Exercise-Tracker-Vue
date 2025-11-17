@@ -4,28 +4,11 @@
       <v-row justify="center" align="center" class="mt-6">
         <v-col cols="12">
           <v-icon size="64" color="primary">mdi-weight-lifter</v-icon>
-          <h2 class="text-h6 mt-2">Select a workout to get started</h2>
+          <h2 class="text-h6 mt-2">Workouts available for the week: </h2>
         </v-col>
 
         <v-col cols="12" md="6">
-          <v-btn
-            color="primary"
-            size="large"
-            block
-            class="mb-4"
-            @click="selectWorkout('individual')"
-          >
-            Individual Workout
-          </v-btn>
 
-          <v-btn
-            color="primary"
-            size="large"
-            block
-            @click="selectWorkout('team')"
-          >
-            Team Workout
-          </v-btn>
         </v-col>
       </v-row>
     </template>

@@ -3,6 +3,16 @@
     <v-row class="mb-4" dense>
       <v-col cols="12">
         <v-card class="pa-3 elevation-2" rounded="xl">
+          <v-btn
+            color="primary"
+            size="large"
+            block
+            class="mb-4"
+            :to="{ name: 'current-workout' }"
+           >
+             Go To Workouts
+          </v-btn>
+
           <v-card-title class="text-subtitle-1 font-weight-bold">
             This Week’s Workouts
           </v-card-title>
@@ -28,35 +38,18 @@
       </v-col>
     </v-row>
 
-<v-row class="mb-4" dense>
-  <v-col cols="12">
-  <v-card class="pa-3 elevation-2" rounded="xl">
-    <v-card-title class="text-subtitle-1 font-weight-bold">
-    Current Streak
-    </v-card-title>
-    <v-card-text class="pt-2">
-    <div class="d-flex flex-column align-center">
-      <v-icon color="#58f707" size="40">mdi-fire</v-icon>
-      <div class="text-h5 font-weight-bold mt-1">{{ streakDays }} Days</div>
-      <div class="text-caption grey--text mt-1 text-center">
-      {{ streakMessage }}
-      </div>
-    </div>
-    </v-card-text>
-  </v-card>
-  </v-col>
-</v-row>
+
 
     <v-row class="mb-4" dense>
       <v-col cols="12">
         <v-card class="pa-3 elevation-2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-bold">
-            Average Mile Time
+            Mile Time PR
           </v-card-title>
           <v-card-text class="pt-2">
             <div class="d-flex flex-column align-center text-center">
               <div class="text-h5 font-weight-bold">{{ averageMileTime }}</div>
-              <div class="text-caption grey--text mb-2">Based on recent runs</div>
+              <div class="text-caption grey--text mb-2">Based on previous run times</div>
             </div>
             <v-sparkline
               :value="mileTimeHistory"
@@ -75,7 +68,7 @@
       <v-col cols="12">
         <v-card class="pa-3 elevation-2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-bold">
-            Top PRs
+            Top Lifting PRs
           </v-card-title>
           <v-card-text>
             <v-divider class="mb-2"></v-divider>
