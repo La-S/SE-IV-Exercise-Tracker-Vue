@@ -14,7 +14,7 @@ jobs:
       VITE_APP_CLIENT_ID: ${{secrets.VITE_APP_CLIENT_ID}}
       VITE_APP_API_URL: ${{secrets.VITE_APP_API_URL}}
       VITE_APP_CLIENT_URL: ${{secrets.VITE_APP_CLIENT_URL}}
-      HTACCESS: ${{env.HTACCESS}}
+      HTACCESS: ${{vars.HTACCESS}}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -44,4 +44,5 @@ jobs:
           REMOTE_HOST: "project3.eaglesoftwareteam.com"
           REMOTE_USER: ubuntu
           TARGET: "/var/www/html/seiv2025/p3/t3"
+
 
