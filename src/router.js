@@ -5,6 +5,7 @@ import Login from "./views/Login.vue";
 import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
 import Utils from "./config/utils";
+import Teams from "./views/Teams.vue";
 import AthleteHomePage from "./views/AthleteHomePage.vue";
 import CurrentWorkout from "./views/CurrentWorkout.vue";
 import CoachLayout from "./layouts/CoachLayout.vue";
@@ -31,6 +32,11 @@ const router = createRouter({
           path: "exercise-plans",
           name: "exercise-plans",
           component: ExercisePlans,
+        },
+        {
+          path: "teams",
+          name: "teams",
+          component: Teams,
         },
       ],
     },
