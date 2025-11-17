@@ -86,6 +86,7 @@ const exerciseFocusOptions = computed(() => [
 ]);
 
 let templateLookup = new Map();
+let setsByExerciseId = new Map();
 
 const formatLabel = (value) => {
   if (!value && value !== 0) return "";
@@ -182,9 +183,24 @@ const mapWorkoutToPlan = (workout) => {
   };
 };
 
+const mapSetToPlanSet = (set) => ({
+  id: set.id,
+  completed: !!set.completed,
+  goalWeight: set.goal_weight ?? null,
+  goalReps: set.goal_reps ?? null,
+  goalTime: set.goal_time ?? null,
+  goalDist: set.goal_dist ?? null,
+  actualWeight: set.actual_weight ?? null,
+  actualReps: set.actual_reps ?? null,
+  actualTime: set.actual_time ?? null,
+  actualDist: set.actual_dist ?? null,
+  distUnits: set.dist_units ?? null,
+});
+
 const mapAssignmentToPlanExercise = (assignment) => {
   const template = templateLookup.get(assignment.exercise_template_id);
   const restValue = Number(assignment.rest_timer);
+  const sets = setsByExerciseId.get(assignment.id) ?? [];
   return {
     assignmentId: assignment.id,
     templateId: assignment.exercise_template_id,
@@ -193,6 +209,7 @@ const mapAssignmentToPlanExercise = (assignment) => {
     muscleGroup: template?.muscleGroup ?? "",
     restTimer: Number.isFinite(restValue) ? restValue : 0,
     notes: assignment.notes ?? "",
+    sets,
   };
 };
 
@@ -233,10 +250,11 @@ const loadPlans = async () => {
   exerciseLoadError.value = null;
 
   try {
-    const [workoutResponse, exerciseResponse, templateResponse] = await Promise.all([
+    const [workoutResponse, exerciseResponse, templateResponse, setResponse] = await Promise.all([
       apiClient.get("workout"),
       apiClient.get("exercise"),
       apiClient.get("exerciseTemplate"),
+      apiClient.get("set"),
     ]);
 
     const templates = Array.isArray(templateResponse.data) ? templateResponse.data : [];
@@ -245,6 +263,15 @@ const loadPlans = async () => {
 
     const workouts = Array.isArray(workoutResponse.data) ? workoutResponse.data : [];
     const assignments = Array.isArray(exerciseResponse.data) ? exerciseResponse.data : [];
+    const sets = Array.isArray(setResponse.data) ? setResponse.data : [];
+
+    setsByExerciseId = new Map();
+    sets.forEach((set) => {
+      const list = setsByExerciseId.get(set.exercise_id) ?? [];
+      list.push(mapSetToPlanSet(set));
+      setsByExerciseId.set(set.exercise_id, list);
+    });
+
     const { coachId: currentCoachId } = resolveUserContext();
     const filteredWorkouts =
       Number.isFinite(currentCoachId) && currentCoachId !== null
@@ -385,17 +412,20 @@ const addExercisesToPlan = async () => {
   try {
     exerciseMutationError.value = null;
     exerciseMutationPending.value = true;
-    const requests = selectedExerciseIds.value.map(async (templateId) => {
-      const payload = {
-        workoutId: plan.id,
-        exerciseTemplateId: templateId,
-        notes: "",
-        restTimer: DEFAULT_REST_TIMER,
-      };
-      const response = await apiClient.post("exercise", payload);
-      plan.exercises.push(mapAssignmentToPlanExercise(response.data));
+    const payload = selectedExerciseIds.value.map((templateId) => ({
+      workoutId: plan.id,
+      exerciseTemplateId: templateId,
+      notes: "",
+      restTimer: DEFAULT_REST_TIMER,
+    }));
+
+    const response = await apiClient.post(`exercise/workout/${plan.id}`, payload);
+    const createdExercises = Array.isArray(response.data) ? response.data : [];
+
+    createdExercises.forEach((assignment) => {
+      plan.exercises.push(mapAssignmentToPlanExercise(assignment));
     });
-    await Promise.all(requests);
+
     addExerciseDialog.value = false;
   } catch (error) {
     console.error("Failed to add exercises to plan", error);
