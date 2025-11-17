@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createMemoryHistory, createRouter, createWebHashHistory, createWebHistory } from "vue-router";
 
 import Login from "./views/Login.vue";
 
@@ -13,7 +13,7 @@ import AthleteLayout from "./layouts/AthleteLayout.vue";
 
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory("/login"),
   routes: [
     {
       path: "/",
