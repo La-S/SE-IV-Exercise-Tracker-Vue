@@ -14,7 +14,6 @@ jobs:
       VITE_APP_CLIENT_ID: ${{secrets.VITE_APP_CLIENT_ID}}
       VITE_APP_API_URL: ${{secrets.VITE_APP_API_URL}}
       VITE_APP_CLIENT_URL: ${{secrets.VITE_APP_CLIENT_URL}}
-      HTACCESS: ${{secrets.HTACCESS}}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -28,8 +27,6 @@ jobs:
           echo VITE_APP_API_URL="$VITE_APP_API_URL" >> .env
           echo VITE_APP_CLIENT_URL=tutorial.eaglesoftwareteam.com >> .env
           echo VITE_APP_SITE_URL=tutorial.eaglesoftwareteam.com >> .env
-          touch .htaccess
-          echo $HTACCESS > .htaccess
 
       - run: npm install
       - run: npm run build
