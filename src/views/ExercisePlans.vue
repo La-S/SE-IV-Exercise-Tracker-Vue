@@ -43,6 +43,7 @@ const exerciseFocusFilter = ref("all");
 const newPlanDialog = ref(false);
 const editPlanDialog = ref(false);
 const editExerciseDialog = ref(false);
+const addSetDialog = ref(false);
 
 const newPlan = reactive({
   focusArea: "",
@@ -75,6 +76,25 @@ const editExercise = reactive({
   muscleGroup: "",
   restTimer: DEFAULT_REST_TIMER,
   notes: "",
+});
+
+const setFormContext = reactive({
+  planId: null,
+  exerciseAssignmentId: null,
+  exerciseType: "",
+});
+
+const newSet = reactive({
+  completed: false,
+  goalWeight: null,
+  goalReps: null,
+  goalTime: null,
+  goalDist: null,
+  actualWeight: null,
+  actualReps: null,
+  actualTime: null,
+  actualDist: null,
+  distUnits: "",
 });
 
 const exerciseFocusOptions = computed(() => [
@@ -344,6 +364,104 @@ const toTemplatePayload = (exercise) => ({
   type: exercise.type,
   muscle_group: exercise.muscleGroup,
 });
+
+const resetNewSet = () => {
+  newSet.completed = false;
+  newSet.goalWeight = null;
+  newSet.goalReps = null;
+  newSet.goalTime = null;
+  newSet.goalDist = null;
+  newSet.actualWeight = null;
+  newSet.actualReps = null;
+  newSet.actualTime = null;
+  newSet.actualDist = null;
+  newSet.distUnits = "";
+};
+
+const openAddSetDialog = (planId, exercise) => {
+  exerciseMutationError.value = null;
+  exerciseMutationPending.value = false;
+  resetNewSet();
+  setFormContext.planId = planId;
+  setFormContext.exerciseAssignmentId = exercise.assignmentId;
+  setFormContext.exerciseType = (exercise.type || "").toString().toLowerCase();
+  addSetDialog.value = true;
+};
+
+const createSetForExercise = async () => {
+  if (
+    !setFormContext.planId ||
+    !setFormContext.exerciseAssignmentId ||
+    exerciseMutationPending.value
+  ) {
+    return;
+  }
+
+  const payload = {
+    completed: newSet.completed,
+    goalWeight: newSet.goalWeight != null ? Number(newSet.goalWeight) : null,
+    goalReps: newSet.goalReps != null ? Number(newSet.goalReps) : null,
+    goalTime: newSet.goalTime != null ? Number(newSet.goalTime) : null,
+    goalDist: newSet.goalDist != null ? Number(newSet.goalDist) : null,
+    actualWeight: newSet.actualWeight != null ? Number(newSet.actualWeight) : null,
+    actualReps: newSet.actualReps != null ? Number(newSet.actualReps) : null,
+    actualTime: newSet.actualTime != null ? Number(newSet.actualTime) : null,
+    actualDist: newSet.actualDist != null ? Number(newSet.actualDist) : null,
+    distUnits: newSet.distUnits || null,
+    exerciseId: setFormContext.exerciseAssignmentId,
+  };
+
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    const response = await apiClient.post("set", payload);
+    const created = mapSetToPlanSet(response.data);
+    const plan = plans.value.find((p) => p.id === setFormContext.planId);
+    const targetExercise = plan?.exercises.find(
+      (e) => e.assignmentId === setFormContext.exerciseAssignmentId
+    );
+    if (targetExercise) {
+      if (!Array.isArray(targetExercise.sets)) {
+        targetExercise.sets = [];
+      }
+      targetExercise.sets.push(created);
+    }
+    addSetDialog.value = false;
+    resetNewSet();
+  } catch (error) {
+    console.error("Failed to create set", error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to create the set. Please check the values and try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
+};
+
+const deleteSetFromExercise = async (planId, exercise, setId) => {
+  if (!setId || exerciseMutationPending.value) {
+    return;
+  }
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    await apiClient.delete(`set/${setId}`);
+    const plan = plans.value.find((p) => p.id === planId);
+    const targetExercise = plan?.exercises.find(
+      (e) => e.assignmentId === exercise.assignmentId
+    );
+    if (targetExercise && Array.isArray(targetExercise.sets)) {
+      targetExercise.sets = targetExercise.sets.filter((set) => set.id !== setId);
+    }
+  } catch (error) {
+    console.error(`Failed to delete set ${setId}`, error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to delete the set. Please try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
+};
 
 const createInlineExercise = async () => {
   if (!inlineExercise.name.trim() || exerciseMutationPending.value) {
@@ -1025,6 +1143,90 @@ watch(editExerciseDialog, (isOpen) => {
                           </v-btn>
                         </v-col>
                       </v-row>
+                      <v-row class="mt-4">
+                        <v-col cols="12">
+                          <div class="d-flex justify-space-between align-center mb-2">
+                            <h4 class="text-subtitle-2 font-weight-medium mb-0">Sets</h4>
+                            <v-btn
+                              variant="text"
+                              size="small"
+                              color="primary"
+                              :disabled="exerciseMutationPending"
+                              @click.stop="openAddSetDialog(selectedPlan.id, exercise)"
+                            >
+                              Add Set
+                            </v-btn>
+                          </div>
+
+                          <v-alert
+                            v-if="!exercise.sets || !exercise.sets.length"
+                            type="info"
+                            variant="tonal"
+                            density="comfortable"
+                            class="mb-2"
+                          >
+                            No sets defined for this exercise.
+                          </v-alert>
+
+                          <v-table
+                            v-else
+                            density="compact"
+                            class="text-body-2"
+                          >
+                            <thead>
+                              <tr>
+                                <th class="text-left">#</th>
+                                <th class="text-left">Goal</th>
+                                <th class="text-left">Actual</th>
+                                <th class="text-left">Units</th>
+                                <th class="text-left">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="(set, idx) in exercise.sets" :key="set.id ?? idx">
+                                <td>{{ idx + 1 }}</td>
+                                <td>
+                                  <span v-if="exercise.type.toLowerCase() === 'strength'">
+                                    {{ set.goalWeight ?? "-" }} lbs × {{ set.goalReps ?? "-" }} reps
+                                  </span>
+                                  <span v-else-if="exercise.type.toLowerCase() === 'cardio'">
+                                    {{ set.goalDist ?? "-" }} {{ set.distUnits || "" }} in
+                                    {{ set.goalTime ?? "-" }} s
+                                  </span>
+                                  <span v-else>
+                                    {{ set.goalReps ?? set.goalTime ?? "-" }}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span v-if="exercise.type.toLowerCase() === 'strength'">
+                                    {{ set.actualWeight ?? "-" }} lbs × {{ set.actualReps ?? "-" }} reps
+                                  </span>
+                                  <span v-else-if="exercise.type.toLowerCase() === 'cardio'">
+                                    {{ set.actualDist ?? "-" }} {{ set.distUnits || "" }} in
+                                    {{ set.actualTime ?? "-" }} s
+                                  </span>
+                                  <span v-else>
+                                    {{ set.actualReps ?? set.actualTime ?? "-" }}
+                                  </span>
+                                </td>
+                                <td>{{ set.distUnits || "-" }}</td>
+                                <td>
+                                  <v-btn
+                                    icon
+                                    variant="text"
+                                    color="error"
+                                    size="small"
+                                    :disabled="exerciseMutationPending"
+                                    @click.stop="deleteSetFromExercise(selectedPlan.id, exercise, set.id)"
+                                  >
+                                    <v-icon size="18">mdi-delete</v-icon>
+                                  </v-btn>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </v-table>
+                        </v-col>
+                      </v-row>
                     </v-expansion-panel-text>
                   </v-expansion-panel>
                 </v-expansion-panels>
@@ -1296,6 +1498,72 @@ watch(editExerciseDialog, (isOpen) => {
                 type="submit"
                 color="primary"
                 :disabled="!editExercise.name || exerciseMutationPending"
+                :loading="exerciseMutationPending"
+              >
+                Save
+              </v-btn>
+            </v-card-actions>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="addSetDialog" max-width="480">
+      <v-card>
+        <v-card-title>Add Set</v-card-title>
+        <v-card-text>
+          <v-form @submit.prevent="createSetForExercise">
+            <v-alert
+              v-if="exerciseMutationError && addSetDialog"
+              type="error"
+              variant="tonal"
+              class="mb-4"
+            >
+              {{ exerciseMutationError }}
+            </v-alert>
+            <v-text-field
+              v-model="newSet.goalWeight"
+              label="Goal weight (lbs)"
+              type="number"
+              prepend-inner-icon="mdi-weight-lifter"
+              density="comfortable"
+            />
+            <v-text-field
+              v-model="newSet.goalReps"
+              label="Goal reps"
+              type="number"
+              prepend-inner-icon="mdi-counter"
+              density="comfortable"
+            />
+            <v-text-field
+              v-model="newSet.goalDist"
+              label="Goal distance"
+              type="number"
+              prepend-inner-icon="mdi-ruler"
+              density="comfortable"
+            />
+            <v-text-field
+              v-model="newSet.goalTime"
+              label="Goal time (seconds)"
+              type="number"
+              prepend-inner-icon="mdi-timer-outline"
+              density="comfortable"
+            />
+            <v-text-field
+              v-model="newSet.distUnits"
+              label="Distance units (mi, m, km, feet, laps)"
+              prepend-inner-icon="mdi-ruler-square"
+              density="comfortable"
+            />
+            <v-card-actions class="mt-2">
+              <v-spacer />
+              <v-btn variant="text" @click="addSetDialog = false">
+                Cancel
+              </v-btn>
+              <v-btn
+                type="submit"
+                color="primary"
+                :disabled="exerciseMutationPending"
                 :loading="exerciseMutationPending"
               >
                 Save
