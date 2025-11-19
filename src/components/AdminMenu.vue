@@ -17,6 +17,10 @@ const name = ref("");
 const logoURL = ref("");
 const menuOpen = ref(false);
 
+const navItems = [
+  { label: "Users", name: "userList" },
+  { label: "Teams", name: "teamList" },
+];
 
 const resetMenu = () => {
   user.value = Utils.getStore("user") || {
@@ -65,6 +69,19 @@ onMounted(() => {
       <span class="text-h6 font-weight-medium title-text">{{ title }}</span>
     </div>
 
+    <v-spacer></v-spacer>
+    <div class="d-flex justify-center nav-buttons">
+      <v-btn
+        v-for="item in navItems"
+        :key="item.name"
+        :to="{ name: item.name }"
+        variant="text"
+        class="mx-2"
+        color="primary"
+      >
+        {{ item.label }}
+      </v-btn>
+    </div>
     <v-spacer></v-spacer>
 
     <v-btn

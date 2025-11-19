@@ -1,7 +1,10 @@
 import { createVuetify } from 'vuetify'
 import 'vuetify/styles'
-
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
 export default createVuetify({
+  components: components,
+  directives: directives,
   theme: {
     defaultTheme: 'dark', 
     themes: {
@@ -29,4 +32,5 @@ export default createVuetify({
     defaultFontFamily: 'Inter, sans-serif', 
     h1: { fontFamily: 'Anton, sans-serif' },
   },
+
 })
