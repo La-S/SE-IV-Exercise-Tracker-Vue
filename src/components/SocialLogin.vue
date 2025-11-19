@@ -40,22 +40,42 @@ const handleCredentialResponse = async (response) => {
       fName.value = user.value.firstName;
       lName.value = user.value.lastName;
       role.value = user.value.role
-      if (role.value == "coach" || role.value == "admin"){ 
-        console.log("nav to dashboard");
-        router.push({ name: "dashboard" });
-      }
-      else{
-        router.push({name: "athlete-homepage"})
-      }
+      routeForRole(role.value);
     })
     .catch((error) => {
       console.log("error", error);
     });
 };
 
-onMounted(() => {
+onMounted(async () => {
+  let user = Utils.getStore("user");
+  console.log(user);
+  if (user) {
+    try {
+      let response = await AuthServices.authenticateSession(user);
+      if (response.status == 200) {
+        routeForRole(user.role);
+      }
+    }
+    catch(err){
+      console.log("error", err);
+    }
+  }
   loginWithGoogle();
 });
+
+
+function routeForRole(role){
+  if (role == "admin"){
+    router.push({name: "userList"})
+  }
+  else if (role == "coach"){ 
+    router.push({ name: "dashboard" });
+  } 
+  else {
+    router.push({ name: "athlete-homepage" });
+  }
+}
 </script>
 
 <template>

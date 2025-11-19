@@ -4,12 +4,14 @@ import Login from "./views/Login.vue";
 
 import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
+import AdminUserList from "./views/AdminUserList.vue"
 import Utils from "./config/utils";
 import Teams from "./views/Teams.vue";
 import AthleteHomePage from "./views/AthleteHomePage.vue";
 import CurrentWorkout from "./views/CurrentWorkout.vue";
 import CoachLayout from "./layouts/CoachLayout.vue";
 import AthleteLayout from "./layouts/AthleteLayout.vue";
+import AdminLayout from "./layouts/AdminLayout.vue";
 
 
 const router = createRouter({
@@ -18,6 +20,17 @@ const router = createRouter({
     {
       path: "/",
       redirect: "/login",
+    },
+    {
+      path: "/admin",
+      component: AdminLayout,
+      children: [
+        {
+          path: "users",
+          name: "userList",
+          component: AdminUserList
+        }
+      ]
     },
     {
       path: "/coach",
