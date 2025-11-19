@@ -80,6 +80,13 @@ const editExercise = reactive({
 
 const addExerciseStep = ref(1);
 const exerciseDrafts = ref([]);
+const exerciseDraftValidation = computed(() => exerciseDrafts.value.map(validateExerciseDraft));
+const canSubmitExerciseDrafts = computed(() => {
+  if (!exerciseDrafts.value.length) {
+    return false;
+  }
+  return exerciseDraftValidation.value.every((error) => !error);
+});
 
 const setFormContext = reactive({
   planId: null,
@@ -449,6 +456,74 @@ const removeDraftSet = (draft, index) => {
   draft.sets.splice(index, 1);
 };
 
+const normalizeNumber = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+};
+
+const validateExerciseDraft = (draft) => {
+  if (!draft.templateId) {
+    return "A template is required.";
+  }
+  if (!draft.sets.length) {
+    return "Add at least one set.";
+  }
+  const type = draft.templateType;
+
+  const allSetsValid = draft.sets.every((set, idx) => {
+    const weight = normalizeNumber(set.goalWeight);
+    const reps = normalizeNumber(set.goalReps);
+    const time = normalizeNumber(set.goalTime);
+    const dist = normalizeNumber(set.goalDist);
+    const units = (set.distUnits || "").toString().trim();
+
+    if (type === "strength") {
+      return weight !== null && reps !== null;
+    }
+    if (type === "cardio") {
+      return dist !== null && !!units && time !== null;
+    }
+    // mobility/other
+    return reps !== null || time !== null;
+  });
+
+  if (!allSetsValid) {
+    if (type === "strength") {
+      return "Strength sets require weight and reps.";
+    }
+    if (type === "cardio") {
+      return "Cardio sets require distance, units, and time.";
+    }
+    return "Sets require at least reps or time.";
+  }
+  return null;
+};
+
+const mapDraftSetToPayload = (draftType, set) => ({
+  completed: false,
+  goalWeight: draftType === "strength" ? normalizeNumber(set.goalWeight) : null,
+  goalReps: draftType !== "cardio" ? normalizeNumber(set.goalReps) : null,
+  goalDist: draftType === "cardio" ? normalizeNumber(set.goalDist) : null,
+  goalTime: normalizeNumber(set.goalTime),
+  distUnits: draftType === "cardio" ? (set.distUnits || "").toString().trim() || null : null,
+});
+
+const buildExerciseDraftPayload = () => {
+  return exerciseDrafts.value.map((draft) => {
+    const restValue = Number(draft.restTimer);
+    return {
+      exerciseTemplateId: draft.templateId,
+      notes: draft.notes?.trim() ?? "",
+      restTimer: Number.isFinite(restValue) ? restValue : DEFAULT_REST_TIMER,
+      sets: draft.sets.map((set) => mapDraftSetToPayload(draft.templateType, set)),
+      templateType: draft.templateType,
+    };
+  });
+};
+
 const resetNewSet = () => {
   newSet.completed = false;
   newSet.goalWeight = null;
@@ -611,18 +686,17 @@ const addExercisesToPlan = async () => {
     return;
   }
 
+  const draftPayloads = buildExerciseDraftPayload();
+
   try {
     exerciseMutationError.value = null;
     exerciseMutationPending.value = true;
-    const payload = exerciseDrafts.value.map((draft) => {
-      const restTimer = Number(draft.restTimer);
-      return {
-        workoutId: plan.id,
-        exerciseTemplateId: draft.templateId,
-        notes: draft.notes?.trim() ?? "",
-        restTimer: Number.isFinite(restTimer) ? restTimer : DEFAULT_REST_TIMER,
-      };
-    });
+    const payload = draftPayloads.map((draft) => ({
+      workoutId: plan.id,
+      exerciseTemplateId: draft.exerciseTemplateId,
+      notes: draft.notes,
+      restTimer: draft.restTimer,
+    }));
 
     const response = await apiClient.post(`exercise/workout/${plan.id}`, payload);
     const createdExercises = Array.isArray(response.data) ? response.data : [];
@@ -1506,7 +1580,7 @@ watch(editExerciseDialog, (isOpen) => {
             </v-alert>
             <div v-else class="d-flex flex-column" style="gap: 24px;">
               <v-card
-                v-for="draft in exerciseDrafts"
+                v-for="(draft, index) in exerciseDrafts"
                 :key="draft.templateId"
                 variant="tonal"
                 class="mb-4"
@@ -1656,6 +1730,15 @@ watch(editExerciseDialog, (isOpen) => {
                       </v-row>
                     </div>
                   </div>
+                  <v-alert
+                    v-if="exerciseDraftValidation[index]"
+                    type="error"
+                    variant="tonal"
+                    density="comfortable"
+                    class="mt-2"
+                  >
+                    {{ exerciseDraftValidation[index] }}
+                  </v-alert>
                 </v-card-text>
               </v-card>
             </div>
@@ -1690,7 +1773,7 @@ watch(editExerciseDialog, (isOpen) => {
             </v-btn>
             <v-btn
               color="primary"
-              :disabled="!exerciseDrafts.length || exerciseMutationPending"
+              :disabled="!canSubmitExerciseDrafts || exerciseMutationPending"
               :loading="exerciseMutationPending"
               @click="addExercisesToPlan"
             >
