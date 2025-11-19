@@ -40,12 +40,11 @@ const handleCredentialResponse = async (response) => {
       fName.value = user.value.firstName;
       lName.value = user.value.lastName;
       role.value = user.value.role
-      if (role.value == "coach" || role.value == "admin"){ 
-        console.log("nav to dashboard");
-        router.push({ name: "dashboard" });
+      if (role.value == "user"){ 
+        router.push({ name: "athlete-homepage"})
       }
       else{
-        router.push({name: "athlete-homepage"})
+        router.push({ name: "dashboard" });
       }
     })
     .catch((error) => {
@@ -53,8 +52,28 @@ const handleCredentialResponse = async (response) => {
     });
 };
 
-onMounted(() => {
+onMounted(async () => {
+  let user = Utils.getStore("user");
+  console.log(user);
+  if (user) {
+    try {
+      let response = await AuthServices.authenticateSession(user);
+      console.log(response);
+      if (response.status == 200) {
+        if (user.role == "user") {
+          router.push({ name: "athlete-homepage" })
+        }
+        else {
+          router.push({ name: "dashboard" });
+        }
+      }
+    }
+    catch(err){
+      console.log("error", err);
+    }
+  }
   loginWithGoogle();
+  
 });
 </script>
 
