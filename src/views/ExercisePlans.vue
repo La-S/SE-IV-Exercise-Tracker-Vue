@@ -43,7 +43,6 @@ const exerciseFocusFilter = ref("all");
 const newPlanDialog = ref(false);
 const editPlanDialog = ref(false);
 const editExerciseDialog = ref(false);
-const addSetDialog = ref(false);
 
 const newPlan = reactive({
   focusArea: "",
@@ -88,24 +87,30 @@ const canSubmitExerciseDrafts = computed(() => {
   return exerciseDraftValidation.value.every((error) => !error);
 });
 
-const setFormContext = reactive({
+const editPlanExerciseDialog = ref(false);
+const planExerciseDraft = reactive({
   planId: null,
-  exerciseAssignmentId: null,
-  exerciseType: "",
+  assignmentId: null,
+  templateId: null,
+  templateName: "",
+  templateLabel: "",
+  templateType: "other",
+  muscleGroupLabel: "",
+  restTimer: DEFAULT_REST_TIMER,
+  notes: "",
+  sets: [],
 });
+const planExerciseOriginalSetIds = ref([]);
+const planExerciseDraftValidation = computed(() => {
+  if (!planExerciseDraft.assignmentId) {
+    return null;
+  }
+  return validateExerciseDraft(planExerciseDraft);
+});
+const canSavePlanExercise = computed(
+  () => !!planExerciseDraft.assignmentId && !planExerciseDraftValidation.value && !exerciseMutationPending.value
+);
 
-const newSet = reactive({
-  completed: false,
-  goalWeight: null,
-  goalReps: null,
-  goalTime: null,
-  goalDist: null,
-  actualWeight: null,
-  actualReps: null,
-  actualTime: null,
-  actualDist: null,
-  distUnits: "",
-});
 
 const exerciseFocusOptions = computed(() => [
   { label: "All", value: "all" },
@@ -198,6 +203,16 @@ watch(
   }
 );
 
+watch(
+  () => editPlanExerciseDialog.value,
+  (open) => {
+    if (!open) {
+      resetPlanExerciseDraft();
+      exerciseMutationError.value = null;
+    }
+  }
+);
+
 const setTemplateLookup = () => {
   templateLookup = new Map(availableExercises.value.map((exercise) => [exercise.id, exercise]));
 };
@@ -246,8 +261,14 @@ const mapSetToPlanSet = (set) => ({
 
 const mapAssignmentToPlanExercise = (assignment) => {
   const template = templateLookup.get(assignment.exercise_template_id);
-  const restValue = Number(assignment.rest_timer);
-  const sets = setsByExerciseId.get(assignment.id) ?? [];
+  const restSource = assignment.rest_timer ?? assignment.restTimer;
+  const restValue = Number(restSource);
+  let sets = [];
+  if (Array.isArray(assignment.sets) && assignment.sets.length) {
+    sets = assignment.sets.map(mapSetToPlanSet);
+  } else {
+    sets = setsByExerciseId.get(assignment.id) ?? [];
+  }
   return {
     assignmentId: assignment.id,
     templateId: assignment.exercise_template_id,
@@ -258,18 +279,6 @@ const mapAssignmentToPlanExercise = (assignment) => {
     notes: assignment.notes ?? "",
     sets,
   };
-};
-
-const propagateTemplateToPlans = (template) => {
-  plans.value.forEach((plan) => {
-    plan.exercises.forEach((exercise) => {
-      if (exercise.templateId === template.id) {
-        exercise.name = template.name;
-        exercise.type = template.type;
-        exercise.muscleGroup = template.muscleGroup;
-      }
-    });
-  });
 };
 
 const removePlanExercisesByTemplate = (templateId) => {
@@ -400,6 +409,20 @@ const resetAddExerciseFlow = () => {
   resetInlineExercise();
 };
 
+const resetPlanExerciseDraft = () => {
+  planExerciseDraft.planId = null;
+  planExerciseDraft.assignmentId = null;
+  planExerciseDraft.templateId = null;
+  planExerciseDraft.templateName = "";
+  planExerciseDraft.templateLabel = "";
+  planExerciseDraft.templateType = "other";
+  planExerciseDraft.muscleGroupLabel = "";
+  planExerciseDraft.restTimer = DEFAULT_REST_TIMER;
+  planExerciseDraft.notes = "";
+  planExerciseDraft.sets = [];
+  planExerciseOriginalSetIds.value = [];
+};
+
 const createEmptySetForType = (type) => ({
   goalWeight: type === "strength" ? null : null,
   goalReps: type === "strength" ? null : null,
@@ -505,7 +528,7 @@ const validateExerciseDraft = (draft) => {
 const mapDraftSetToPayload = (draftType, set) => ({
   completed: false,
   goalWeight: draftType === "strength" ? normalizeNumber(set.goalWeight) : null,
-  goalReps: draftType !== "cardio" ? normalizeNumber(set.goalReps) : null,
+  goalReps: draftType === "cardio" ? null : normalizeNumber(set.goalReps),
   goalDist: draftType === "cardio" ? normalizeNumber(set.goalDist) : null,
   goalTime: normalizeNumber(set.goalTime),
   distUnits: draftType === "cardio" ? (set.distUnits || "").toString().trim() || null : null,
@@ -524,103 +547,6 @@ const buildExerciseDraftPayload = () => {
   });
 };
 
-const resetNewSet = () => {
-  newSet.completed = false;
-  newSet.goalWeight = null;
-  newSet.goalReps = null;
-  newSet.goalTime = null;
-  newSet.goalDist = null;
-  newSet.actualWeight = null;
-  newSet.actualReps = null;
-  newSet.actualTime = null;
-  newSet.actualDist = null;
-  newSet.distUnits = "";
-};
-
-const openAddSetDialog = (planId, exercise) => {
-  exerciseMutationError.value = null;
-  exerciseMutationPending.value = false;
-  resetNewSet();
-  setFormContext.planId = planId;
-  setFormContext.exerciseAssignmentId = exercise.assignmentId;
-  setFormContext.exerciseType = (exercise.type || "").toString().toLowerCase();
-  addSetDialog.value = true;
-};
-
-const createSetForExercise = async () => {
-  if (
-    !setFormContext.planId ||
-    !setFormContext.exerciseAssignmentId ||
-    exerciseMutationPending.value
-  ) {
-    return;
-  }
-
-  const payload = {
-    completed: newSet.completed,
-    goalWeight: newSet.goalWeight != null ? Number(newSet.goalWeight) : null,
-    goalReps: newSet.goalReps != null ? Number(newSet.goalReps) : null,
-    goalTime: newSet.goalTime != null ? Number(newSet.goalTime) : null,
-    goalDist: newSet.goalDist != null ? Number(newSet.goalDist) : null,
-    actualWeight: newSet.actualWeight != null ? Number(newSet.actualWeight) : null,
-    actualReps: newSet.actualReps != null ? Number(newSet.actualReps) : null,
-    actualTime: newSet.actualTime != null ? Number(newSet.actualTime) : null,
-    actualDist: newSet.actualDist != null ? Number(newSet.actualDist) : null,
-    distUnits: newSet.distUnits || null,
-    exerciseId: setFormContext.exerciseAssignmentId,
-  };
-
-  try {
-    exerciseMutationError.value = null;
-    exerciseMutationPending.value = true;
-    const response = await apiClient.post("set", payload);
-    const created = mapSetToPlanSet(response.data);
-    const plan = plans.value.find((p) => p.id === setFormContext.planId);
-    const targetExercise = plan?.exercises.find(
-      (e) => e.assignmentId === setFormContext.exerciseAssignmentId
-    );
-    if (targetExercise) {
-      if (!Array.isArray(targetExercise.sets)) {
-        targetExercise.sets = [];
-      }
-      targetExercise.sets.push(created);
-    }
-    addSetDialog.value = false;
-    resetNewSet();
-  } catch (error) {
-    console.error("Failed to create set", error);
-    exerciseMutationError.value =
-      error?.response?.data?.message ||
-      "Unable to create the set. Please check the values and try again.";
-  } finally {
-    exerciseMutationPending.value = false;
-  }
-};
-
-const deleteSetFromExercise = async (planId, exercise, setId) => {
-  if (!setId || exerciseMutationPending.value) {
-    return;
-  }
-  try {
-    exerciseMutationError.value = null;
-    exerciseMutationPending.value = true;
-    await apiClient.delete(`set/${setId}`);
-    const plan = plans.value.find((p) => p.id === planId);
-    const targetExercise = plan?.exercises.find(
-      (e) => e.assignmentId === exercise.assignmentId
-    );
-    if (targetExercise && Array.isArray(targetExercise.sets)) {
-      targetExercise.sets = targetExercise.sets.filter((set) => set.id !== setId);
-    }
-  } catch (error) {
-    console.error(`Failed to delete set ${setId}`, error);
-    exerciseMutationError.value =
-      error?.response?.data?.message ||
-      "Unable to delete the set. Please try again.";
-  } finally {
-    exerciseMutationPending.value = false;
-  }
-};
 
 const createInlineExercise = async () => {
   if (!inlineExercise.name.trim() || exerciseMutationPending.value) {
@@ -696,12 +622,22 @@ const addExercisesToPlan = async () => {
       exerciseTemplateId: draft.exerciseTemplateId,
       notes: draft.notes,
       restTimer: draft.restTimer,
+      sets: draft.sets,
     }));
 
-    const response = await apiClient.post(`exercise/workout/${plan.id}`, payload);
+    const response = await apiClient.post(
+      `exercise/workout/${plan.id}/sets`,
+      payload
+    );
     const createdExercises = Array.isArray(response.data) ? response.data : [];
 
     createdExercises.forEach((assignment) => {
+      if (Array.isArray(assignment.sets)) {
+        setsByExerciseId.set(
+          assignment.id,
+          assignment.sets.map(mapSetToPlanSet)
+        );
+      }
       plan.exercises.push(mapAssignmentToPlanExercise(assignment));
     });
 
@@ -711,6 +647,68 @@ const addExercisesToPlan = async () => {
     exerciseMutationError.value =
       error?.response?.data?.message ||
       "Unable to add the selected exercises. Please try again.";
+  } finally {
+    exerciseMutationPending.value = false;
+  }
+};
+
+const savePlanExerciseDraft = async () => {
+  if (!planExerciseDraft.assignmentId || exerciseMutationPending.value) {
+    return;
+  }
+  const validationError = planExerciseDraftValidation.value;
+  if (validationError) {
+    exerciseMutationError.value = validationError;
+    return;
+  }
+
+  try {
+    exerciseMutationError.value = null;
+    exerciseMutationPending.value = true;
+    const restValue = Number(planExerciseDraft.restTimer);
+    const normalizedRest = Number.isFinite(restValue) ? restValue : DEFAULT_REST_TIMER;
+    await apiClient.put(`exercise/${planExerciseDraft.assignmentId}`, {
+      restTimer: normalizedRest,
+      notes: planExerciseDraft.notes?.trim() ?? "",
+    });
+
+    const setIdsToDelete = [...(planExerciseOriginalSetIds.value || [])];
+    if (setIdsToDelete.length) {
+      await Promise.all(setIdsToDelete.map((id) => apiClient.delete(`set/${id}`)));
+    }
+
+    let createdSets = [];
+    if (planExerciseDraft.sets.length) {
+      const setPayloads = planExerciseDraft.sets.map((set) =>
+        mapDraftSetToPayload(planExerciseDraft.templateType, set)
+      );
+      const setResponse = await apiClient.post(
+        `set/exercise/${planExerciseDraft.assignmentId}`,
+        setPayloads
+      );
+      createdSets = Array.isArray(setResponse.data)
+        ? setResponse.data.map(mapSetToPlanSet)
+        : [];
+    }
+
+    const plan = plans.value.find((p) => p.id === planExerciseDraft.planId);
+    const exercise = plan?.exercises.find(
+      (item) => item.assignmentId === planExerciseDraft.assignmentId
+    );
+    if (exercise) {
+      exercise.restTimer = normalizedRest;
+      exercise.notes = planExerciseDraft.notes?.trim() ?? "";
+      exercise.sets = createdSets;
+    }
+    setsByExerciseId.set(planExerciseDraft.assignmentId, createdSets);
+
+    editPlanExerciseDialog.value = false;
+    resetPlanExerciseDraft();
+  } catch (error) {
+    console.error("Failed to update exercise", error);
+    exerciseMutationError.value =
+      error?.response?.data?.message ||
+      "Unable to update the exercise. Please try again.";
   } finally {
     exerciseMutationPending.value = false;
   }
@@ -770,16 +768,40 @@ const openLibraryExerciseEditor = (exercise) => {
 const openPlanExerciseEditor = (planId, exercise) => {
   exerciseMutationError.value = null;
   exerciseMutationPending.value = false;
-  editExercise.templateId = exercise.templateId;
-  editExercise.assignmentId = exercise.assignmentId;
-  editExercise.source = "plan";
-  editExercise.planId = planId;
-  editExercise.name = exercise.name ?? "";
-  editExercise.type = exercise.type ?? "";
-  editExercise.muscleGroup = exercise.muscleGroup ?? "";
-  editExercise.restTimer = exercise.restTimer ?? DEFAULT_REST_TIMER;
-  editExercise.notes = exercise.notes ?? "";
-  editExerciseDialog.value = true;
+  const template =
+    templateLookup.get(exercise.templateId) ?? {
+      name: exercise.name,
+      type: exercise.type ?? "Other",
+      rawType: (exercise.type || "other").toString().toLowerCase(),
+      muscleGroup: exercise.muscleGroup,
+    };
+  planExerciseDraft.planId = planId;
+  planExerciseDraft.assignmentId = exercise.assignmentId;
+  planExerciseDraft.templateId = exercise.templateId;
+  planExerciseDraft.templateName = template.name ?? exercise.name ?? "Exercise";
+  planExerciseDraft.templateLabel = template.type ?? "Other";
+  planExerciseDraft.templateType =
+    template.rawType ?? (exercise.type || "other").toString().toLowerCase();
+  planExerciseDraft.muscleGroupLabel = template.muscleGroup ?? "";
+  planExerciseDraft.restTimer = exercise.restTimer ?? DEFAULT_REST_TIMER;
+  planExerciseDraft.notes = exercise.notes ?? "";
+  const nextSets =
+    Array.isArray(exercise.sets) && exercise.sets.length ? exercise.sets : [createEmptySetForType(planExerciseDraft.templateType)];
+  planExerciseDraft.sets = nextSets.map((set) => ({
+    id: set.id ?? null,
+    goalWeight: set.goalWeight ?? null,
+    goalReps: set.goalReps ?? null,
+    goalTime: set.goalTime ?? null,
+    goalDist: set.goalDist ?? null,
+    distUnits: set.distUnits ?? "",
+  }));
+  if (!planExerciseDraft.sets.length) {
+    planExerciseDraft.sets.push(createEmptySetForType(planExerciseDraft.templateType));
+  }
+  planExerciseOriginalSetIds.value = (exercise.sets || [])
+    .map((set) => set.id)
+    .filter((id) => id);
+  editPlanExerciseDialog.value = true;
 };
 
 const updatePlanExercisesFromTemplate = (template) => {
@@ -1313,9 +1335,9 @@ watch(editExerciseDialog, (isOpen) => {
                               size="small"
                               color="primary"
                               :disabled="exerciseMutationPending"
-                              @click.stop="openAddSetDialog(selectedPlan.id, exercise)"
+                              @click.stop="openPlanExerciseEditor(selectedPlan.id, exercise)"
                             >
-                              Add Set
+                              Edit Sets
                             </v-btn>
                           </div>
 
@@ -1338,9 +1360,6 @@ watch(editExerciseDialog, (isOpen) => {
                               <tr>
                                 <th class="text-left">#</th>
                                 <th class="text-left">Goal</th>
-                                <th class="text-left">Actual</th>
-                                <th class="text-left">Units</th>
-                                <th class="text-left">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1357,31 +1376,6 @@ watch(editExerciseDialog, (isOpen) => {
                                   <span v-else>
                                     {{ set.goalReps ?? set.goalTime ?? "-" }}
                                   </span>
-                                </td>
-                                <td>
-                                  <span v-if="exercise.type.toLowerCase() === 'strength'">
-                                    {{ set.actualWeight ?? "-" }} lbs × {{ set.actualReps ?? "-" }} reps
-                                  </span>
-                                  <span v-else-if="exercise.type.toLowerCase() === 'cardio'">
-                                    {{ set.actualDist ?? "-" }} {{ set.distUnits || "" }} in
-                                    {{ set.actualTime ?? "-" }} s
-                                  </span>
-                                  <span v-else>
-                                    {{ set.actualReps ?? set.actualTime ?? "-" }}
-                                  </span>
-                                </td>
-                                <td>{{ set.distUnits || "-" }}</td>
-                                <td>
-                                  <v-btn
-                                    icon
-                                    variant="text"
-                                    color="error"
-                                    size="small"
-                                    :disabled="exerciseMutationPending"
-                                    @click.stop="deleteSetFromExercise(selectedPlan.id, exercise, set.id)"
-                                  >
-                                    <v-icon size="18">mdi-delete</v-icon>
-                                  </v-btn>
                                 </td>
                               </tr>
                             </tbody>
@@ -1661,7 +1655,7 @@ watch(editExerciseDialog, (isOpen) => {
                             density="comfortable"
                           />
                         </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'strength'">
+                        <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
                           <v-text-field
                             v-model="set.goalTime"
                             label="Target time (sec)"
@@ -1707,7 +1701,7 @@ watch(editExerciseDialog, (isOpen) => {
                             density="comfortable"
                           />
                         </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType !== 'cardio'">
+                        <v-col cols="12" md="4" v-if="draft.templateType !== 'strength'">
                           <v-text-field
                             v-model="set.goalTime"
                             label="Target time (sec)"
@@ -1872,69 +1866,191 @@ watch(editExerciseDialog, (isOpen) => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="addSetDialog" max-width="480">
+    <v-dialog v-model="editPlanExerciseDialog" max-width="900">
       <v-card>
-        <v-card-title>Add Set</v-card-title>
+        <v-card-title>Edit Exercise</v-card-title>
         <v-card-text>
-          <v-form @submit.prevent="createSetForExercise">
-            <v-alert
-              v-if="exerciseMutationError && addSetDialog"
-              type="error"
-              variant="tonal"
-              class="mb-4"
+          <v-alert
+            v-if="exerciseMutationError && editPlanExerciseDialog"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            class="mb-4"
+          >
+            {{ exerciseMutationError }}
+          </v-alert>
+
+          <div class="mb-4">
+            <div class="text-subtitle-1 font-weight-medium">
+              {{ planExerciseDraft.templateName }}
+            </div>
+            <div class="text-body-2 text-medium-emphasis">
+              {{ planExerciseDraft.templateLabel }} • {{ planExerciseDraft.muscleGroupLabel || "General" }}
+            </div>
+          </div>
+
+          <v-row>
+            <v-col cols="12" md="4">
+              <v-text-field
+                v-model="planExerciseDraft.restTimer"
+                label="Rest timer (seconds)"
+                type="number"
+                min="0"
+                prepend-inner-icon="mdi-timer-outline"
+                density="comfortable"
+              />
+            </v-col>
+            <v-col cols="12" md="8">
+              <v-textarea
+                v-model="planExerciseDraft.notes"
+                label="Notes"
+                rows="2"
+                auto-grow
+                prepend-inner-icon="mdi-note-text"
+                density="comfortable"
+              />
+            </v-col>
+          </v-row>
+
+          <v-divider class="my-4" />
+
+          <div class="d-flex justify-space-between align-center mb-2">
+            <h4 class="text-subtitle-2 font-weight-medium mb-0">Sets</h4>
+            <v-btn
+              variant="text"
+              size="small"
+              color="primary"
+              @click="addDraftSet(planExerciseDraft)"
             >
-              {{ exerciseMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="newSet.goalWeight"
-              label="Goal weight (lbs)"
-              type="number"
-              prepend-inner-icon="mdi-weight-lifter"
-              density="comfortable"
-            />
-            <v-text-field
-              v-model="newSet.goalReps"
-              label="Goal reps"
-              type="number"
-              prepend-inner-icon="mdi-counter"
-              density="comfortable"
-            />
-            <v-text-field
-              v-model="newSet.goalDist"
-              label="Goal distance"
-              type="number"
-              prepend-inner-icon="mdi-ruler"
-              density="comfortable"
-            />
-            <v-text-field
-              v-model="newSet.goalTime"
-              label="Goal time (seconds)"
-              type="number"
-              prepend-inner-icon="mdi-timer-outline"
-              density="comfortable"
-            />
-            <v-text-field
-              v-model="newSet.distUnits"
-              label="Distance units (mi, m, km, feet, laps)"
-              prepend-inner-icon="mdi-ruler-square"
-              density="comfortable"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="addSetDialog = false">
-                Cancel
-              </v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="exerciseMutationPending"
-                :loading="exerciseMutationPending"
-              >
-                Save
-              </v-btn>
-            </v-card-actions>
-          </v-form>
+              Add Set
+            </v-btn>
+          </div>
+
+          <v-alert
+            v-if="!planExerciseDraft.sets.length"
+            type="info"
+            variant="tonal"
+            density="comfortable"
+            class="mb-2"
+          >
+            No sets added yet.
+          </v-alert>
+
+          <div v-else>
+            <div
+              v-for="(set, index) in planExerciseDraft.sets"
+              :key="index"
+              class="pa-3 rounded-lg mb-3"
+              style="background-color: rgba(255,255,255,0.04);"
+            >
+              <v-row>
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
+                  <v-text-field
+                    v-model="set.goalWeight"
+                    label="Goal weight (lbs)"
+                    type="number"
+                    prepend-inner-icon="mdi-weight-lifter"
+                    density="comfortable"
+                  />
+                </v-col>
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
+                  <v-text-field
+                    v-model="set.goalReps"
+                    label="Goal reps"
+                    type="number"
+                    prepend-inner-icon="mdi-counter"
+                    density="comfortable"
+                  />
+                </v-col>
+
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
+                  <v-text-field
+                    v-model="set.goalDist"
+                    label="Goal distance"
+                    type="number"
+                    prepend-inner-icon="mdi-ruler"
+                    density="comfortable"
+                  />
+                </v-col>
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
+                  <v-text-field
+                    v-model="set.distUnits"
+                    label="Distance units (mi, km, m, laps)"
+                    prepend-inner-icon="mdi-ruler-square"
+                    density="comfortable"
+                  />
+                </v-col>
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
+                  <v-text-field
+                    v-model="set.goalTime"
+                    label="Target time (sec)"
+                    type="number"
+                    prepend-inner-icon="mdi-timer-outline"
+                    density="comfortable"
+                  />
+                </v-col>
+
+                <v-col
+                  cols="12"
+                  md="4"
+                  v-if="planExerciseDraft.templateType !== 'strength' && planExerciseDraft.templateType !== 'cardio'"
+                >
+                  <v-text-field
+                    v-model="set.goalReps"
+                    label="Goal reps"
+                    type="number"
+                    prepend-inner-icon="mdi-counter"
+                    density="comfortable"
+                  />
+                </v-col>
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType !== 'strength'">
+                  <v-text-field
+                    v-model="set.goalTime"
+                    label="Target time (sec)"
+                    type="number"
+                    prepend-inner-icon="mdi-timer-outline"
+                    density="comfortable"
+                  />
+                </v-col>
+                <v-col cols="12" md="2" class="d-flex align-end justify-end">
+                  <v-btn
+                    icon
+                    variant="text"
+                    color="error"
+                    size="small"
+                    @click="removeDraftSet(planExerciseDraft, index)"
+                  >
+                    <v-icon size="18">mdi-delete</v-icon>
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </div>
+          </div>
+
+          <v-alert
+            v-if="planExerciseDraftValidation"
+            type="error"
+            variant="tonal"
+            density="comfortable"
+            class="mt-2"
+          >
+            {{ planExerciseDraftValidation }}
+          </v-alert>
         </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="editPlanExerciseDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn
+            color="primary"
+            :disabled="!canSavePlanExercise"
+            :loading="exerciseMutationPending"
+            @click="savePlanExerciseDraft"
+          >
+            Save
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
 
