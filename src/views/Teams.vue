@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import apiClient from "../services/services";
+import { useRouter } from "vue-router";
 
 const yourTeams = ref([]);
 
@@ -13,6 +14,8 @@ const availableAthletes = ref([]);
 const teamCreationError = ref(null);
 const teamUpdateError = ref(null);
 const addAthletesError = ref(null);
+
+const router = useRouter();
 
 const teamSections = computed(() => [
   { label: "Your Teams", type: "team", teams: yourTeams.value },
@@ -30,7 +33,7 @@ const getAthletesOnTeam = async () => {
   }
   selectedTeam.value.athletes = []
   response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.lastName, email: athlete.email})
+    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
   })
 };
 
@@ -41,7 +44,7 @@ const getAllAthletes = async () => {
   }
   availableAthletes.value = []
   response.data.forEach((athlete) =>{
-    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.lastName, email: athlete.email})
+    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
   })
 };
 
@@ -249,6 +252,10 @@ const removeAthleteFromTeam = async (athleteId) => { // todo maybe add warning i
 const email = (email) => {
   window.location.href = `mailto:${email}`
 }
+
+const viewAthleteInfo = (athlete) => {
+   router.push({ path: `athlete-info/${athlete.id}`,  });
+}
 </script>
 
 <template>
@@ -367,6 +374,15 @@ const email = (email) => {
                       </div>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
+                      <v-btn
+                        color="primary"
+                        variant="text"
+                        @click="viewAthleteInfo(athlete)"
+                      >
+                        View Exercises
+                      </v-btn>
+                      <br/>
+                      <br/>
                       <v-btn
                         color="primary"
                         variant="text"

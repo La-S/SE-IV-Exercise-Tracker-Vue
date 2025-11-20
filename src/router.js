@@ -11,6 +11,7 @@ import AthleteHomePage from "./views/AthleteHomePage.vue";
 import CurrentWorkout from "./views/CurrentWorkout.vue";
 import CoachLayout from "./layouts/CoachLayout.vue";
 import AthleteLayout from "./layouts/AthleteLayout.vue";
+import AthleteInfo from "./views/AthleteInfo.vue";
 import AdminLayout from "./layouts/AdminLayout.vue";
 
 
@@ -50,6 +51,11 @@ const router = createRouter({
           path: "teams",
           name: "teams",
           component: Teams,
+        },
+        {
+          path: "athlete-info/:id",
+          name: "athlete-info",
+          component: AthleteInfo,
         },
       ],
     },
