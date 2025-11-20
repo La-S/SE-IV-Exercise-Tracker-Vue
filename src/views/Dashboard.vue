@@ -267,14 +267,14 @@ const quickActions = [
   {
     label: "Assign Plan",
     icon: "mdi-account-multiple-plus",
-    color: "success",
+    color: "primary",
     description: "Send a plan to one or more teams.",
     action: () => router.push({ name: "exercise-plans" }),
   },
   {
     label: "View Teams",
     icon: "mdi-account-group",
-    color: "green-darken-1",
+    color: "primary",
     description: "Check roster and readiness for each team.",
     action: () => router.push({ name: "teams" }),
   },
