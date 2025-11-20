@@ -1,7 +1,14 @@
 import { createVuetify } from 'vuetify'
 import 'vuetify/styles'
-
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+import { VDataTable } from 'vuetify/labs/VDataTable'
 export default createVuetify({
+  components: {
+    ...components,
+    VDataTable, 
+  },
+  directives: directives,
   theme: {
     defaultTheme: 'dark', 
     themes: {
@@ -29,4 +36,5 @@ export default createVuetify({
     defaultFontFamily: 'Inter, sans-serif', 
     h1: { fontFamily: 'Anton, sans-serif' },
   },
+
 })
