@@ -14,7 +14,7 @@ const headers = ref([
   {title: "First Name", align: "end", sortable: true, key:"firstName"},
   {title: "Last Name", align: "end", sortable: true, key:"lastName"},
   {title: "Role", align: "end", sortable: true, key:"role"},
-  {title: "Save Role change", align:"end", key:"save"}
+  {title: "Save Role Change", align:"start", key:"save"}
 ])
 
 const loadUsers = async () => {
@@ -62,7 +62,7 @@ const saveRole = (user) =>{
         </v-container>  
       </template>
       <template v-slot:item.save="{ item }"> 
-        <v-container> 
+        <v-container class="save-holder"> 
           <v-btn class="save-btn" @click="saveRole(item)">Save</v-btn>
         </v-container>  
       </template>
@@ -84,6 +84,13 @@ const saveRole = (user) =>{
   max-width: 200px;
   padding-right:0px;
   margin-right:0px;
+  margin-top:15px
+}
+.save-holder{
+  max-width: 150px;
+  padding-left:0px;
+  margin-left:0px;
+  margin-bottom:5px;
 }
 .overflow-y-auto {
   overflow-y: auto;
