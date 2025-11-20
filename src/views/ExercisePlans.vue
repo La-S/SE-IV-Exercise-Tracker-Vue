@@ -127,6 +127,14 @@ const exerciseFocusOptions = computed(() => [
 let templateLookup = new Map();
 let setsByExerciseId = new Map();
 
+const teamAssignment = reactive({
+  selectedTeamIds: [],
+  assignmentDate: "",
+  pending: false,
+  error: null,
+  successMessage: "",
+});
+
 const formatLabel = (value) => {
   if (!value && value !== 0) return "";
   const label = String(value);
@@ -1434,6 +1442,81 @@ watch(editExerciseDialog, (isOpen) => {
       </v-col>
 
       <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0">
+        <v-card class="h-100">
+          <v-card-title class="text-subtitle-1 font-weight-medium">
+            Assign to Teams
+          </v-card-title>
+          <v-divider />
+          <v-card-text>
+            <v-alert
+              v-if="teamLoadError"
+              type="error"
+              variant="tonal"
+              density="comfortable"
+              class="mb-4"
+            >
+              {{ teamLoadError }}
+            </v-alert>
+            <div v-else>
+              <p class="text-body-2 mb-3">
+                Assign the selected workout plan to one or more teams. Every athlete in each team receives a copy of the plan with all exercises and sets.
+              </p>
+              <v-select
+                v-model="teamAssignment.selectedTeamIds"
+                :items="teams"
+                item-title="name"
+                item-value="id"
+                label="Select teams"
+                multiple
+                chips
+                density="comfortable"
+                :disabled="teamsLoading || !selectedPlan"
+              />
+              <v-text-field
+                v-model="teamAssignment.assignmentDate"
+                label="Assignment date"
+                type="date"
+                prepend-inner-icon="mdi-calendar"
+                density="comfortable"
+                class="mt-3"
+                :disabled="teamAssignment.pending || !selectedPlan"
+              />
+              <v-alert
+                v-if="teamAssignment.error"
+                type="error"
+                variant="tonal"
+                density="comfortable"
+                class="mt-3"
+              >
+                {{ teamAssignment.error }}
+              </v-alert>
+              <v-alert
+                v-if="teamAssignment.successMessage"
+                type="success"
+                variant="tonal"
+                density="comfortable"
+                class="mt-3"
+              >
+                {{ teamAssignment.successMessage }}
+              </v-alert>
+            </div>
+          </v-card-text>
+          <v-card-actions class="px-4 pb-4">
+            <v-btn
+              block
+              color="primary"
+              :disabled="
+                !selectedPlan ||
+                !teamAssignment.selectedTeamIds.length ||
+                teamAssignment.pending ||
+                teamsLoading
+              "
+              :loading="teamAssignment.pending"
+            >
+              Assign Workout
+            </v-btn>
+          </v-card-actions>
+        </v-card>
       </v-col>
     </v-row>
 
