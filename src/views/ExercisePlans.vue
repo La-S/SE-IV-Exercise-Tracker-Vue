@@ -20,6 +20,7 @@ const muscleFocusOrder = [
   "Cardio",
   "Other",
 ];
+const cardioDistanceUnits = ["mi", "km", "m", "feet", "laps"];
 
 const plans = ref([]);
 
@@ -195,7 +196,21 @@ onMounted(() => {
 watch(
   () => addExerciseDialog.value,
   (open) => {
-    if (!open) {
+    if (open) {
+      exerciseMutationError.value = null;
+      exerciseMutationPending.value = false;
+      addExerciseStep.value = 1;
+      exerciseDrafts.value = [];
+      const plan = selectedPlan.value;
+      if (plan) {
+        const preselected = plan.exercises
+          .map((exercise) => exercise.templateId)
+          .filter((id) => Number.isFinite(id));
+        selectedExerciseIds.value = Array.from(new Set(preselected));
+      } else {
+        selectedExerciseIds.value = [];
+      }
+    } else {
       resetAddExerciseFlow();
       exerciseMutationError.value = null;
       exerciseMutationPending.value = false;
@@ -1440,8 +1455,9 @@ watch(editExerciseDialog, (isOpen) => {
                     density="comfortable"
                     class="mb-3"
                   />
-                  <v-text-field
+                  <v-select
                     v-model="inlineExercise.muscleGroup"
+                    :items="muscleFocusOrder"
                     label="Muscle group"
                     prepend-inner-icon="mdi-dna"
                     density="comfortable"
@@ -1677,9 +1693,10 @@ watch(editExerciseDialog, (isOpen) => {
                           />
                         </v-col>
                         <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
-                          <v-text-field
+                          <v-select
                             v-model="set.distUnits"
-                            label="Distance units (mi, km, m, laps)"
+                            :items="cardioDistanceUnits"
+                            label="Distance units"
                             prepend-inner-icon="mdi-ruler-square"
                             density="comfortable"
                           />
@@ -1966,9 +1983,10 @@ watch(editExerciseDialog, (isOpen) => {
                   />
                 </v-col>
                 <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
-                  <v-text-field
+                  <v-select
                     v-model="set.distUnits"
-                    label="Distance units (mi, km, m, laps)"
+                    :items="cardioDistanceUnits"
+                    label="Distance units"
                     prepend-inner-icon="mdi-ruler-square"
                     density="comfortable"
                   />
