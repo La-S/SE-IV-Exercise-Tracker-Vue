@@ -1419,7 +1419,7 @@ watch(editExerciseDialog, (isOpen) => {
                         <v-col cols="12" md="8">
                           <p class="text-body-2 mb-2">{{ exercise.notes || "No notes" }}</p>
                         </v-col>
-                        <v-col cols="12" md="4" class="d-flex flex-column align-start">
+                        <v-col cols="12" md="4" class="d-flex flex-column align-end text-right">
                           <v-chip color="secondary" variant="elevated" class="mb-2">
                             Rest: {{ exercise.restTimer }}s
                           </v-chip>
