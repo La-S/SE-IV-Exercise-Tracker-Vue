@@ -34,6 +34,9 @@ const exercisesLoading = ref(true);
 const exerciseLoadError = ref(null);
 const exerciseMutationError = ref(null);
 const exerciseMutationPending = ref(false);
+const teams = ref([]);
+const teamsLoading = ref(true);
+const teamLoadError = ref(null);
 
 const addExerciseDialog = ref(false);
 const selectedExerciseIds = ref([]);
@@ -48,7 +51,6 @@ const editExerciseDialog = ref(false);
 const newPlan = reactive({
   focusArea: "",
   notes: "",
-  expectedDate: "",
   date: "",
 });
 
@@ -56,7 +58,6 @@ const editPlan = reactive({
   id: null,
   focusArea: "",
   notes: "",
-  expectedDate: "",
   date: "",
 });
 
@@ -123,6 +124,23 @@ const exerciseFocusOptions = computed(() => [
 
 let templateLookup = new Map();
 let setsByExerciseId = new Map();
+
+const teamAssignment = reactive({
+  selectedTeamIds: [],
+  assignmentDate: "",
+  pending: false,
+  error: null,
+  successMessage: "",
+});
+
+const assignmentDisabledReason = computed(() => {
+  if (teamAssignment.pending) return "";
+  if (!selectedPlan.value) return "Select a workout plan.";
+  if (!selectedPlan.value.exercises.length) return "Add at least one exercise to the plan.";
+  if (!teamAssignment.selectedTeamIds.length) return "Select at least one team.";
+  if (!teamAssignment.assignmentDate) return "Choose an assignment date.";
+  return "";
+});
 
 const formatLabel = (value) => {
   if (!value && value !== 0) return "";
@@ -253,7 +271,6 @@ const mapWorkoutToPlan = (workout) => {
     userId: workout.user_id ?? null,
     coachId: workout.coach_id ?? null,
     notes: workout.notes ?? "",
-    expectedDate: toDateInputValue(workout.expected_date),
     date: toDateInputValue(workout.date),
     focusArea: workout.focus_area ?? "",
     exercises: [],
@@ -317,20 +334,30 @@ const collectAssignmentIdsByTemplate = (templateId) => {
 const loadPlans = async () => {
   plansLoading.value = true;
   exercisesLoading.value = true;
+  teamsLoading.value = true;
   planLoadError.value = null;
   exerciseLoadError.value = null;
+  teamLoadError.value = null;
 
   try {
-    const [workoutResponse, exerciseResponse, templateResponse, setResponse] = await Promise.all([
-      apiClient.get("workout"),
+    const userContext = resolveUserContext();
+    const workoutRequest = Number.isFinite(userContext.coachId)
+      ? apiClient.get(`workout/user/${userContext.coachId}`)
+      : apiClient.get("workout");
+
+    const [workoutResponse, exerciseResponse, templateResponse, setResponse, teamResponse] = await Promise.all([
+      workoutRequest,
       apiClient.get("exercise"),
       apiClient.get("exerciseTemplate"),
       apiClient.get("set"),
+      apiClient.get("team"),
     ]);
 
     const templates = Array.isArray(templateResponse.data) ? templateResponse.data : [];
     availableExercises.value = templates.map(mapTemplateToExercise);
     setTemplateLookup();
+
+    teams.value = Array.isArray(teamResponse.data) ? teamResponse.data : [];
 
     const workouts = Array.isArray(workoutResponse.data) ? workoutResponse.data : [];
     const assignments = Array.isArray(exerciseResponse.data) ? exerciseResponse.data : [];
@@ -343,16 +370,10 @@ const loadPlans = async () => {
       setsByExerciseId.set(set.exercise_id, list);
     });
 
-    const { coachId: currentCoachId } = resolveUserContext();
-    const filteredWorkouts =
-      Number.isFinite(currentCoachId) && currentCoachId !== null
-        ? workouts.filter((workout) => workout.coach_id === currentCoachId)
-        : workouts;
-
     const plansById = new Map();
     const nextPlans = [];
 
-    filteredWorkouts.forEach((workout) => {
+    workouts.forEach((workout) => {
       const plan = mapWorkoutToPlan(workout);
       plansById.set(plan.id, plan);
       nextPlans.push(plan);
@@ -376,10 +397,13 @@ const loadPlans = async () => {
     exerciseLoadError.value = message;
     plans.value = [];
     availableExercises.value = [];
+    teams.value = [];
+    teamLoadError.value = message;
   } finally {
     setTemplateLookup();
     plansLoading.value = false;
     exercisesLoading.value = false;
+    teamsLoading.value = false;
   }
 };
 
@@ -675,6 +699,46 @@ const addExercisesToPlan = async () => {
   }
 };
 
+const assignWorkoutToTeams = async () => {
+  const plan = selectedPlan.value;
+  if (
+    !plan ||
+    !teamAssignment.selectedTeamIds.length ||
+    teamAssignment.pending
+  ) {
+    return;
+  }
+  const disabledReason = assignmentDisabledReason.value;
+  if (disabledReason) {
+    teamAssignment.error = disabledReason;
+    return;
+  }
+  teamAssignment.error = null;
+  teamAssignment.successMessage = "";
+  teamAssignment.pending = true;
+
+  try {
+    const payload = {
+      date: teamAssignment.assignmentDate || null,
+    };
+    await Promise.all(
+      teamAssignment.selectedTeamIds.map((teamId) =>
+        apiClient.post(`workout/${plan.id}/team/${teamId}`, payload)
+      )
+    );
+    teamAssignment.successMessage = `Assigned to ${teamAssignment.selectedTeamIds.length} team${
+      teamAssignment.selectedTeamIds.length > 1 ? "s" : ""
+    }.`;
+  } catch (error) {
+    console.error("Failed to assign workout to teams", error);
+    teamAssignment.error =
+      error?.response?.data?.message ||
+      "Unable to assign the workout. Please try again.";
+  } finally {
+    teamAssignment.pending = false;
+  }
+};
+
 const savePlanExerciseDraft = async () => {
   if (!planExerciseDraft.assignmentId || exerciseMutationPending.value) {
     return;
@@ -965,7 +1029,6 @@ const confirmAvailableExerciseDeletion = (exercise) => {
 const resetNewPlan = () => {
   newPlan.focusArea = "";
   newPlan.notes = "";
-  newPlan.expectedDate = "";
   newPlan.date = "";
 };
 
@@ -973,7 +1036,6 @@ const resetEditPlan = () => {
   editPlan.id = null;
   editPlan.focusArea = "";
   editPlan.notes = "";
-  editPlan.expectedDate = "";
   editPlan.date = "";
 };
 
@@ -983,7 +1045,6 @@ const openEditPlan = (plan) => {
   editPlan.id = plan.id;
   editPlan.focusArea = plan.focusArea ?? "";
   editPlan.notes = plan.notes ?? "";
-  editPlan.expectedDate = plan.expectedDate ?? "";
   editPlan.date = plan.date ?? "";
   editPlanDialog.value = true;
 };
@@ -991,7 +1052,6 @@ const openEditPlan = (plan) => {
 const applyPlanUpdates = (plan, updates) => {
   plan.focusArea = updates.focusArea?.trim() ?? "";
   plan.notes = updates.notes?.trim() ?? "";
-  plan.expectedDate = updates.expectedDate || "";
   plan.date = updates.date || "";
 };
 
@@ -1003,7 +1063,6 @@ const buildPlanPayload = (plan) => {
   return {
     userId: ids.userId,
     coachId: ids.coachId ?? ids.userId,
-    expectedDate: plan.expectedDate || null,
     date: plan.date || null,
     focusArea: plan.focusArea?.trim() ?? "",
     notes: plan.notes?.trim() ?? "",
@@ -1254,12 +1313,7 @@ watch(editExerciseDialog, (isOpen) => {
                 {{ planMutationError }}
               </v-alert>
               <v-row>
-                <v-col cols="12" md="6">
-                  <p class="text-body-2 mb-2">
-                    <strong>Expected Date:</strong> {{ formatDateLabel(selectedPlan.expectedDate) }}
-                  </p>
-                </v-col>
-                <v-col cols="12" md="6">
+                <v-col cols="12">
                   <v-alert
                     v-if="selectedPlan.notes"
                     border="start"
@@ -1423,6 +1477,91 @@ watch(editExerciseDialog, (isOpen) => {
       </v-col>
 
       <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0">
+        <v-card class="h-100">
+          <v-card-title class="text-subtitle-1 font-weight-medium">
+            Assign to Teams
+          </v-card-title>
+          <v-divider />
+          <v-card-text>
+            <v-alert
+              v-if="teamLoadError"
+              type="error"
+              variant="tonal"
+              density="comfortable"
+              class="mb-4"
+            >
+              {{ teamLoadError }}
+            </v-alert>
+            <div v-else>
+              <p class="text-body-2 mb-3">
+                Assign the selected workout plan to one or more teams. Every athlete in each team receives a copy of the plan with all exercises and sets.
+              </p>
+              <v-select
+                v-model="teamAssignment.selectedTeamIds"
+                :items="teams"
+                item-title="name"
+                item-value="id"
+                label="Select teams"
+                multiple
+                chips
+                density="comfortable"
+                :disabled="teamsLoading || !selectedPlan"
+              />
+              <v-text-field
+                v-model="teamAssignment.assignmentDate"
+                label="Assignment date"
+                type="date"
+                prepend-inner-icon="mdi-calendar"
+                density="comfortable"
+                class="mt-3"
+                :disabled="teamAssignment.pending || !selectedPlan"
+              />
+              <v-alert
+                v-if="teamAssignment.error"
+                type="error"
+                variant="tonal"
+                density="comfortable"
+                class="mt-3"
+              >
+                {{ teamAssignment.error }}
+              </v-alert>
+              <v-alert
+                v-if="teamAssignment.successMessage"
+                type="success"
+                variant="tonal"
+                density="comfortable"
+                class="mt-3"
+              >
+                {{ teamAssignment.successMessage }}
+              </v-alert>
+              <v-alert
+                v-if="assignmentDisabledReason && !teamAssignment.pending"
+                type="info"
+                variant="tonal"
+                density="comfortable"
+                class="mt-3"
+              >
+                {{ assignmentDisabledReason }}
+              </v-alert>
+            </div>
+          </v-card-text>
+          <v-card-actions class="px-4 pb-4">
+            <v-btn
+              block
+              color="primary"
+              :disabled="
+                !selectedPlan ||
+                !!assignmentDisabledReason ||
+                teamAssignment.pending ||
+                teamsLoading
+              "
+              :loading="teamAssignment.pending"
+              @click="assignWorkoutToTeams"
+            >
+              Assign Workout
+            </v-btn>
+          </v-card-actions>
+        </v-card>
       </v-col>
     </v-row>
 
@@ -2078,16 +2217,6 @@ watch(editExerciseDialog, (isOpen) => {
               auto-grow
               prepend-inner-icon="mdi-note-outline"
             />
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="newPlan.expectedDate"
-                  label="Expected date"
-                  type="date"
-                  prepend-inner-icon="mdi-calendar-clock"
-                />
-              </v-col>
-            </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
               <v-btn variant="text" @click="newPlanDialog = false">Cancel</v-btn>
@@ -2131,17 +2260,6 @@ watch(editExerciseDialog, (isOpen) => {
               auto-grow
               prepend-inner-icon="mdi-note-outline"
             />
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="editPlan.expectedDate"
-                  label="Expected date"
-                  type="date"
-                  prepend-inner-icon="mdi-calendar-clock"
-                />
-              </v-col>
-
-            </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
               <v-btn variant="text" @click="editPlanDialog = false; resetEditPlan();">
