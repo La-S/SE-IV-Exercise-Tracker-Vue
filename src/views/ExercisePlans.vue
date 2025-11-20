@@ -51,7 +51,6 @@ const editExerciseDialog = ref(false);
 const newPlan = reactive({
   focusArea: "",
   notes: "",
-  expectedDate: "",
   date: "",
 });
 
@@ -59,7 +58,6 @@ const editPlan = reactive({
   id: null,
   focusArea: "",
   notes: "",
-  expectedDate: "",
   date: "",
 });
 
@@ -264,7 +262,6 @@ const mapWorkoutToPlan = (workout) => {
     userId: workout.user_id ?? null,
     coachId: workout.coach_id ?? null,
     notes: workout.notes ?? "",
-    expectedDate: toDateInputValue(workout.expected_date),
     date: toDateInputValue(workout.date),
     focusArea: workout.focus_area ?? "",
     exercises: [],
@@ -334,8 +331,13 @@ const loadPlans = async () => {
   teamLoadError.value = null;
 
   try {
+    const userContext = resolveUserContext();
+    const workoutRequest = Number.isFinite(userContext.coachId)
+      ? apiClient.get(`workout/user/${userContext.coachId}`)
+      : apiClient.get("workout");
+
     const [workoutResponse, exerciseResponse, templateResponse, setResponse, teamResponse] = await Promise.all([
-      apiClient.get("workout"),
+      workoutRequest,
       apiClient.get("exercise"),
       apiClient.get("exerciseTemplate"),
       apiClient.get("set"),
@@ -359,16 +361,10 @@ const loadPlans = async () => {
       setsByExerciseId.set(set.exercise_id, list);
     });
 
-    const { coachId: currentCoachId } = resolveUserContext();
-    const filteredWorkouts =
-      Number.isFinite(currentCoachId) && currentCoachId !== null
-        ? workouts.filter((workout) => workout.coach_id === currentCoachId)
-        : workouts;
-
     const plansById = new Map();
     const nextPlans = [];
 
-    filteredWorkouts.forEach((workout) => {
+    workouts.forEach((workout) => {
       const plan = mapWorkoutToPlan(workout);
       plansById.set(plan.id, plan);
       nextPlans.push(plan);
@@ -694,6 +690,41 @@ const addExercisesToPlan = async () => {
   }
 };
 
+const assignWorkoutToTeams = async () => {
+  const plan = selectedPlan.value;
+  if (
+    !plan ||
+    !teamAssignment.selectedTeamIds.length ||
+    teamAssignment.pending
+  ) {
+    return;
+  }
+  teamAssignment.error = null;
+  teamAssignment.successMessage = "";
+  teamAssignment.pending = true;
+
+  try {
+    const payload = {
+      date: teamAssignment.assignmentDate || null,
+    };
+    await Promise.all(
+      teamAssignment.selectedTeamIds.map((teamId) =>
+        apiClient.post(`workout/${plan.id}/team/${teamId}`, payload)
+      )
+    );
+    teamAssignment.successMessage = `Assigned to ${teamAssignment.selectedTeamIds.length} team${
+      teamAssignment.selectedTeamIds.length > 1 ? "s" : ""
+    }.`;
+  } catch (error) {
+    console.error("Failed to assign workout to teams", error);
+    teamAssignment.error =
+      error?.response?.data?.message ||
+      "Unable to assign the workout. Please try again.";
+  } finally {
+    teamAssignment.pending = false;
+  }
+};
+
 const savePlanExerciseDraft = async () => {
   if (!planExerciseDraft.assignmentId || exerciseMutationPending.value) {
     return;
@@ -984,7 +1015,6 @@ const confirmAvailableExerciseDeletion = (exercise) => {
 const resetNewPlan = () => {
   newPlan.focusArea = "";
   newPlan.notes = "";
-  newPlan.expectedDate = "";
   newPlan.date = "";
 };
 
@@ -992,7 +1022,6 @@ const resetEditPlan = () => {
   editPlan.id = null;
   editPlan.focusArea = "";
   editPlan.notes = "";
-  editPlan.expectedDate = "";
   editPlan.date = "";
 };
 
@@ -1002,7 +1031,6 @@ const openEditPlan = (plan) => {
   editPlan.id = plan.id;
   editPlan.focusArea = plan.focusArea ?? "";
   editPlan.notes = plan.notes ?? "";
-  editPlan.expectedDate = plan.expectedDate ?? "";
   editPlan.date = plan.date ?? "";
   editPlanDialog.value = true;
 };
@@ -1010,7 +1038,6 @@ const openEditPlan = (plan) => {
 const applyPlanUpdates = (plan, updates) => {
   plan.focusArea = updates.focusArea?.trim() ?? "";
   plan.notes = updates.notes?.trim() ?? "";
-  plan.expectedDate = updates.expectedDate || "";
   plan.date = updates.date || "";
 };
 
@@ -1022,7 +1049,6 @@ const buildPlanPayload = (plan) => {
   return {
     userId: ids.userId,
     coachId: ids.coachId ?? ids.userId,
-    expectedDate: plan.expectedDate || null,
     date: plan.date || null,
     focusArea: plan.focusArea?.trim() ?? "",
     notes: plan.notes?.trim() ?? "",
@@ -1273,12 +1299,7 @@ watch(editExerciseDialog, (isOpen) => {
                 {{ planMutationError }}
               </v-alert>
               <v-row>
-                <v-col cols="12" md="6">
-                  <p class="text-body-2 mb-2">
-                    <strong>Expected Date:</strong> {{ formatDateLabel(selectedPlan.expectedDate) }}
-                  </p>
-                </v-col>
-                <v-col cols="12" md="6">
+                <v-col cols="12">
                   <v-alert
                     v-if="selectedPlan.notes"
                     border="start"
@@ -1512,6 +1533,7 @@ watch(editExerciseDialog, (isOpen) => {
                 teamsLoading
               "
               :loading="teamAssignment.pending"
+              @click="assignWorkoutToTeams"
             >
               Assign Workout
             </v-btn>
@@ -2172,16 +2194,6 @@ watch(editExerciseDialog, (isOpen) => {
               auto-grow
               prepend-inner-icon="mdi-note-outline"
             />
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="newPlan.expectedDate"
-                  label="Expected date"
-                  type="date"
-                  prepend-inner-icon="mdi-calendar-clock"
-                />
-              </v-col>
-            </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
               <v-btn variant="text" @click="newPlanDialog = false">Cancel</v-btn>
@@ -2225,17 +2237,6 @@ watch(editExerciseDialog, (isOpen) => {
               auto-grow
               prepend-inner-icon="mdi-note-outline"
             />
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="editPlan.expectedDate"
-                  label="Expected date"
-                  type="date"
-                  prepend-inner-icon="mdi-calendar-clock"
-                />
-              </v-col>
-
-            </v-row>
             <v-card-actions class="mt-2">
               <v-spacer />
               <v-btn variant="text" @click="editPlanDialog = false; resetEditPlan();">
