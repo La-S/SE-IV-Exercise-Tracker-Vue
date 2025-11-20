@@ -12,7 +12,12 @@ const theme = useTheme();
 const drawer = ref(false);
 const user = ref(null);
 const initials = ref("");
-const name = ref("");
+const firstName = ref("");
+const lastName = ref("");
+const name = ref("User");
+
+const storedUser = Utils.getStore("user");
+const userId = storedUser?.id
 
 const athleteMenuItems = [
   { title: "Home", route: "athlete-homepage" },
@@ -22,6 +27,30 @@ const athleteMenuItems = [
 const isAthletePage = computed(() =>
   ["athlete-homepage", "current-workout"].includes(route.name)
 );
+
+function getInitialsFromEmail(email) {
+  if (!email) return "?";
+  const namePart = email.split("@")[0]; 
+  const parts = namePart.split(".");
+  const firstInitial = parts[0]?.[0]?.toUpperCase() || "";
+  const lastInitial = parts[1]?.[0]?.toUpperCase() || "";
+  return firstInitial + lastInitial || "?";
+}
+
+function getNamesFromEmail(email) {
+  if (!email) return { first: "User", last: "" };
+
+  const namePart = email.split("@")[0];
+  const parts = namePart.split(".");
+
+  const first =
+    parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "User";
+
+  const last =
+    parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "";
+
+  return { first, last };
+}
 
 const resetMenu = () => {
   user.value = Utils.getStore("user");
@@ -52,8 +81,16 @@ function goTo(name) {
 }
 
 onMounted(() => {
-  resetMenu();
+  const storedUser = Utils.getStore("user");
+  if (storedUser?.email) {
+    user.value = storedUser;
+    initials.value = getInitialsFromEmail(storedUser.email);
 
+    const names = getNamesFromEmail(storedUser.email);
+    firstName.value = names.first;
+    lastName.value = names.last;
+    name.value = `${names.first} ${names.last}`.trim();
+  }
   if (!isAthletePage.value) {
     router.push({ name: "athlete-homepage" });
   }
@@ -89,7 +126,7 @@ onMounted(() => {
       <v-menu bottom min-width="200px" rounded offset-y v-if="user">
         <template #activator="{ props }">
           <v-btn v-bind="props" icon>
-            <v-avatar color="secondary">
+            <v-avatar color="primary">
               <span class="text-white font-weight-bold">{{ initials }}</span>
             </v-avatar>
           </v-btn>
@@ -97,7 +134,7 @@ onMounted(() => {
   
         <v-card>
           <v-card-text class="text-center">
-            <v-avatar color="secondary" size="48" class="mb-3">
+            <v-avatar color="primary" size="48" class="mb-3">
               <span class="text-white font-weight-bold">{{ initials }}</span>
             </v-avatar>
             <h3 class="text-h6">{{ name }}</h3>
