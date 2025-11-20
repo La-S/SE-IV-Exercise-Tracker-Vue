@@ -144,7 +144,7 @@
 
       <!-- CARDIO LAYOUT -->
       <template v-if="exercise.type === 'cardio'">
-        <v-card class="pa-3 mb-3" variant="tonal" color="secondary" rounded="md">
+        <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
           <div class="font-weight-medium mb-1">Cardio Goal</div>
           <div class="text-body-2 mb-2">
             {{ exercise.goalMiles[0] }} miles  
