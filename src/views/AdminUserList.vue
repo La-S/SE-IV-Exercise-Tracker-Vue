@@ -43,9 +43,9 @@ onMounted(() => {
       :items="users"
     >
       <template v-slot:item.role="{ item }"> 
-        <v-container class="combobox-holder">   
+        <v-container class="combobox-holder"> 
           <v-combobox
-            v-model="item.role"
+            v-model="item.raw.role"
             :items="['user', 'coach', 'admin']"
             variant="outlined"
             density="compact"
@@ -64,6 +64,8 @@ onMounted(() => {
 
 .combobox-holder{
   max-width: 200px;
+  padding-right:0px;
+  margin-right:0px;
 }
 .overflow-y-auto {
   overflow-y: auto;
