@@ -1634,7 +1634,6 @@ watch(editExerciseDialog, (isOpen) => {
                       v-for="(set, index) in draft.sets"
                       :key="index"
                       class="pa-3 rounded-lg mb-3"
-                      style="background-color: rgba(255,255,255,0.04);"
                     >
                       <v-row>
                         <v-col cols="12" md="4" v-if="draft.templateType === 'strength'">
