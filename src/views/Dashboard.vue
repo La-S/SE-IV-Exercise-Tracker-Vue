@@ -387,7 +387,7 @@ onMounted(() => {
         <v-col cols="12" md="8" lg="7">
           <v-card class="pa-4 chart-card" elevation="1">
             <div class="text-subtitle-1 font-weight-medium mb-4">
-              Upcoming Week Load
+              Upcoming Week Load Across All Teams
             </div>
             <div v-if="hasWorkouts" class="chart-wrapper">
               <Bar :data="weeklyChartData" :options="weeklyChartOptions" />
