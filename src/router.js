@@ -5,7 +5,6 @@ import Login from "./views/Login.vue";
 import Dashboard from "./views/Dashboard.vue";
 import ExercisePlans from "./views/ExercisePlans.vue";
 import AdminUserList from "./views/AdminUserList.vue"
-import AdminTeamList from "./views/AdminTeamList.vue"
 import Utils from "./config/utils";
 import Teams from "./views/Teams.vue";
 import AthleteHomePage from "./views/AthleteHomePage.vue";
