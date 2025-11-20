@@ -494,6 +494,19 @@ const createEmptySetForType = (type) => ({
   distUnits: type === "cardio" ? "" : "",
 });
 
+const cloneSetFromSource = (source, type) => {
+  const next = createEmptySetForType(type);
+  if (!source) {
+    return next;
+  }
+  next.goalWeight = source.goalWeight ?? next.goalWeight;
+  next.goalReps = source.goalReps ?? next.goalReps;
+  next.goalTime = source.goalTime ?? next.goalTime;
+  next.goalDist = source.goalDist ?? next.goalDist;
+  next.distUnits = source.distUnits ?? next.distUnits;
+  return next;
+};
+
 const createDraftFromTemplate = (template) => ({
   templateId: template?.id ?? null,
   templateName: template?.name ?? "Exercise",
@@ -531,7 +544,9 @@ const returnToTemplateSelection = () => {
 };
 
 const addDraftSet = (draft) => {
-  draft.sets.push(createEmptySetForType(draft.templateType));
+  const templateType = draft.templateType ?? "other";
+  const baseSet = draft.sets?.[0];
+  draft.sets.push(cloneSetFromSource(baseSet, templateType));
 };
 
 const removeDraftSet = (draft, index) => {
