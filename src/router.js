@@ -30,11 +30,6 @@ const router = createRouter({
           path: "users",
           name: "userList",
           component: AdminUserList
-        },
-        {
-          path: "teams",
-          name: "teamList",
-          component: AdminTeamList
         }
       ]
     },
