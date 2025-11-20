@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   Chart as ChartJS,
@@ -17,10 +17,38 @@ ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 const user = ref(Utils.getStore("user"));
 const workouts = ref([]);
+const athleteNames = reactive({});
 const loading = ref(false);
 const loadError = ref("");
 const lastUpdated = ref(null);
 const router = useRouter();
+
+const pendingAthleteLookups = new Set();
+
+const ensureAthleteName = async (athleteId) => {
+  if (!athleteId || athleteNames[athleteId]) {
+    return;
+  }
+  if (pendingAthleteLookups.has(athleteId)) {
+    return;
+  }
+  pendingAthleteLookups.add(athleteId);
+  try {
+    const response = await apiClient.get(`/users/${athleteId}`);
+    const person = response?.data;
+    if (!person) {
+      return;
+    }
+    const first = person.first_name ?? person.firstName ?? "";
+    const last = person.last_name ?? person.lastName ?? "";
+    const fullName = `${first} ${last}`.trim() || `Athlete ${athleteId}`;
+    athleteNames[athleteId] = fullName;
+  } catch (error) {
+    console.error(`Failed to load athlete ${athleteId}`, error);
+  } finally {
+    pendingAthleteLookups.delete(athleteId);
+  }
+};
 
 const resolvedCoachId = computed(() => {
   const raw =
@@ -245,8 +273,8 @@ const quickActions = [
   },
   {
     label: "View Teams",
-    icon: "mdi-account-group-outline",
-    color: "secondary",
+    icon: "mdi-account-group",
+    color: "green-darken-1",
     description: "Check roster and readiness for each team.",
     action: () => router.push({ name: "teams" }),
   },
@@ -268,6 +296,19 @@ const formatDateLabel = (date) => {
   });
 };
 
+const formatAthleteLabel = (assignment) => {
+  if (assignment.teamName) {
+    return assignment.teamName;
+  }
+  if (assignment.athleteId === null || assignment.athleteId === undefined) {
+    return "Coach plan";
+  }
+  if (!athleteNames[assignment.athleteId]) {
+    ensureAthleteName(assignment.athleteId);
+  }
+  return athleteNames[assignment.athleteId] ?? `Athlete ${assignment.athleteId}`;
+};
+
 const assignmentStatusCounts = computed(() => {
   const counts = { upcoming: 0, completed: 0, overdue: 0 };
   const today = startOfToday();
@@ -284,6 +325,20 @@ const assignmentStatusCounts = computed(() => {
   });
   return counts;
 });
+
+watch(
+  () =>
+    coachWorkouts.value
+      .map((workout) => workout.athleteId)
+      .filter((id) => id !== null && id !== undefined),
+  (athleteIds) => {
+    const uniqueIds = [...new Set(athleteIds)];
+    uniqueIds.forEach((id) => {
+      ensureAthleteName(id);
+    });
+  },
+  { immediate: true }
+);
 
 onMounted(() => {
   user.value = Utils.getStore("user");
@@ -332,7 +387,7 @@ onMounted(() => {
         <v-col cols="12" md="8" lg="7">
           <v-card class="pa-4 chart-card" elevation="1">
             <div class="text-subtitle-1 font-weight-medium mb-4">
-              Upcoming Week Load
+              Upcoming Week Load Across All Teams
             </div>
             <div v-if="hasWorkouts" class="chart-wrapper">
               <Bar :data="weeklyChartData" :options="weeklyChartOptions" />
@@ -405,7 +460,7 @@ onMounted(() => {
                 </v-list-item-title>
                 <v-list-item-subtitle>
                   {{ formatDateLabel(assignment.expectedDate) }}
-                  <span v-if="assignment.teamName"> • {{ assignment.teamName }}</span>
+                  <span class="text-medium-emphasis"> • {{ formatAthleteLabel(assignment) }}</span>
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
@@ -438,6 +493,7 @@ onMounted(() => {
                 </v-list-item-title>
                 <v-list-item-subtitle>
                   {{ formatDateLabel(completed.completedOn) }}
+                  <span class="text-medium-emphasis"> • {{ formatAthleteLabel(completed) }}</span>
                 </v-list-item-subtitle>
               </v-list-item>
             </v-list>
