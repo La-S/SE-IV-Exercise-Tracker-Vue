@@ -96,7 +96,7 @@ getExercises()
               <div>
                 <div class="d-flex align-center justify-space-between mb-4 flex-wrap">
                   <h3 class="text-subtitle-1 font-weight-medium mb-0">Exercises</h3>
-                  <v-btn
+                  <!-- <v-btn
                     color="primary"
                     variant="tonal"
                     size="small"
@@ -104,7 +104,7 @@ getExercises()
                     @click="addAthletesToTeamDialog = true"
                   >
                     Add Workouts???
-                  </v-btn>
+                  </v-btn> -->
                 </div>
                 <v-alert v-if="!exercises.length" variant="tonal" type="info">
                   No exercises assigned to this athlete. Add Workout?
@@ -192,13 +192,13 @@ getExercises()
         
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="shouldShowExerciseDialog = false">Cancel</v-btn>
-          <v-btn
+          <v-btn variant="text" @click="shouldShowExerciseDialog = false">Done</v-btn>
+          <!-- <v-btn
             color="primary"
             @click=""
           >
             Add to Team
-          </v-btn>
+          </v-btn> -->
         </v-card-actions>
       </v-card>
     </v-dialog>
