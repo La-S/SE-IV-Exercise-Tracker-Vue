@@ -249,6 +249,11 @@
 
         <v-divider class="my-3"></v-divider>
 
+
+        <v-btn color="primary" block @click="completeWorkout" :to="{ name: 'athlete-homepage' }">
+          Complete Workout
+        </v-btn>
+        <v-divider class="my-3"></v-divider>
         <v-btn color="error" block @click="showEndModal = true">
           Cancel Workout
         </v-btn>
@@ -344,6 +349,9 @@ async function fetchWorkouts() {
     backendWorkouts.value = Array.isArray(response.data) ? response.data : [];
     filterThisWeeksWorkouts();
 
+
+
+
   } catch (err) {
     console.error("Error loading workouts:", err);
     workoutLoadError.value = err?.response?.data?.message || "Unable to load workouts. Please refresh and try again.";
@@ -371,6 +379,7 @@ function filterThisWeeksWorkouts() {
 
   weeklyWorkouts.value = backendWorkouts.value.filter(workout => {
     if (!workout.expected_date) return false;
+    if (workout.date != null) return false; 
     const workoutDate = new Date(workout.expected_date);
     return workoutDate >= startOfWeek && workoutDate < endOfWeek;
   });
@@ -483,7 +492,7 @@ async function completeWorkout() {
 
   await submitWorkout();
 
-  showEndModal.value = true;
+  //showEndModal.value = true;
 }
 
 function startRestTimer(duration = 60) {
@@ -542,15 +551,7 @@ async function submitWorkout() {
       }
     }
 
-    const response = await apiClient.put(`workout/user/${userId}/dated`, body);
-    if (!completedWorkouts.value.includes(activeWorkout.value)) {
-      completedWorkouts.value.push(activeWorkout.value);
-    }
-
-    if (completedWorkouts.value.length >= weeklyWorkouts.value.length) {
-      allWorkoutsCompleted.value = true;
-      setTimeout(() => router.push({ name: "athlete-homepage" }), 3000);
-    }
+    
 
   } catch (err) {
     console.error("Error submitting workout:", err);
