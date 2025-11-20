@@ -34,6 +34,9 @@ const exercisesLoading = ref(true);
 const exerciseLoadError = ref(null);
 const exerciseMutationError = ref(null);
 const exerciseMutationPending = ref(false);
+const teams = ref([]);
+const teamsLoading = ref(true);
+const teamLoadError = ref(null);
 
 const addExerciseDialog = ref(false);
 const selectedExerciseIds = ref([]);
@@ -317,20 +320,25 @@ const collectAssignmentIdsByTemplate = (templateId) => {
 const loadPlans = async () => {
   plansLoading.value = true;
   exercisesLoading.value = true;
+  teamsLoading.value = true;
   planLoadError.value = null;
   exerciseLoadError.value = null;
+  teamLoadError.value = null;
 
   try {
-    const [workoutResponse, exerciseResponse, templateResponse, setResponse] = await Promise.all([
+    const [workoutResponse, exerciseResponse, templateResponse, setResponse, teamResponse] = await Promise.all([
       apiClient.get("workout"),
       apiClient.get("exercise"),
       apiClient.get("exerciseTemplate"),
       apiClient.get("set"),
+      apiClient.get("team"),
     ]);
 
     const templates = Array.isArray(templateResponse.data) ? templateResponse.data : [];
     availableExercises.value = templates.map(mapTemplateToExercise);
     setTemplateLookup();
+
+    teams.value = Array.isArray(teamResponse.data) ? teamResponse.data : [];
 
     const workouts = Array.isArray(workoutResponse.data) ? workoutResponse.data : [];
     const assignments = Array.isArray(exerciseResponse.data) ? exerciseResponse.data : [];
@@ -376,10 +384,13 @@ const loadPlans = async () => {
     exerciseLoadError.value = message;
     plans.value = [];
     availableExercises.value = [];
+    teams.value = [];
+    teamLoadError.value = message;
   } finally {
     setTemplateLookup();
     plansLoading.value = false;
     exercisesLoading.value = false;
+    teamsLoading.value = false;
   }
 };
 
