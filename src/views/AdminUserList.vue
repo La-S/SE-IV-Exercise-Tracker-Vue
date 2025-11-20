@@ -12,7 +12,7 @@ const headers = ref([
   {title: "email", align: "start", sortable: true, key:"email"},
   {title: "First Name", align: "end", sortable: true, key:"firstName"},
   {title: "Last Name", align: "end", sortable: true, key:"lastName"},
-  {title: "role", align: "end", sortable: true, key:"role"},
+  {title: "Role", align: "end", sortable: true, key:"role"},
 ])
 
 const loadUsers = async () => {
@@ -24,7 +24,7 @@ const loadUsers = async () => {
   } else {
     users.value = [];
   }
-  console.log(users)
+  totalUsers.value = users.length
 };
 
 onMounted(() => {
@@ -38,8 +38,22 @@ onMounted(() => {
 <template>
   <v-container>
     <v-data-table
+      :headers="headers"
+      :filter-keys="['firstName', 'lastName', 'email']"
       :items="users"
-    ></v-data-table>
+    >
+      <template v-slot:item.role="{ item }"> 
+        <v-container class="combobox-holder">   
+          <v-combobox
+            v-model="item.role"
+            :items="['user', 'coach', 'admin']"
+            variant="outlined"
+            density="compact"
+          ></v-combobox>
+        </v-container>  
+      </template>
+    </v-data-table>
+
   </v-container>
 </template>
 
@@ -48,6 +62,9 @@ onMounted(() => {
   height: 100%;
 }
 
+.combobox-holder{
+  max-width: 200px;
+}
 .overflow-y-auto {
   overflow-y: auto;
 }
