@@ -22,7 +22,7 @@ async function getAthleteInfo() {
 }
 
 async function getExercises() {
-  const body = {"startDate": '2025-01-01', "endDate": '2025-12-31'}
+  const body = {"startDate": dayjs().subtract(7, 'day').toISOString(), "endDate": dayjs().add(7, 'day').toISOString()}
   const response = await apiClient.post(`/workout/user/${athleteId}/dated`, body);
   if (response.status != 200){
     throw Error("status not 200.")
@@ -95,7 +95,7 @@ getExercises()
 
               <div>
                 <div class="d-flex align-center justify-space-between mb-4 flex-wrap">
-                  <h3 class="text-subtitle-1 font-weight-medium mb-0">Exercises</h3>
+                  <h3 class="text-subtitle-1 font-weight-medium mb-0">Recent & Upcoming Exercises</h3>
                   <!-- <v-btn
                     color="primary"
                     variant="tonal"
