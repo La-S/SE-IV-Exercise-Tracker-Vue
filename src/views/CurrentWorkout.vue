@@ -17,16 +17,12 @@
       <v-card class="pa-4 mx-auto mt-4" max-width="600">
         <v-card-title class="justify-center">
           <span class="text-h6 font-weight-bold">
-            {{ activeWorkout === 'individual' ? 'Individual Workout' : 'Team Workout' }}
+            {{ activeWorkout.name || 'Workout' }}
           </span>
         </v-card-title>
 
-        <div class="my-3 d-flex align-center justify-center">
-          <v-icon color="primary">mdi-timer</v-icon>
-          <span class="ml-2 text-h6">{{ formatTime(workoutTime) }}</span>
-
+        
           <v-btn
-            v-if="!timerStarted"
             variant="tonal"
             size="small"
             class="ml-2"
@@ -36,26 +32,16 @@
             Start Workout
           </v-btn>
 
-          <v-btn
-            v-else
-            variant="tonal"
-            size="small"
-            class="ml-2"
-            @click="toggleTimer"
-          >
-            {{ timerPaused ? 'Resume' : 'Pause' }}
-          </v-btn>
-        </div>
-
         <v-divider class="my-2"></v-divider>
 
-        <v-list dense>
+       <v-list dense>
           <v-list-item
             v-for="(exercise, index) in currentExercises"
             :key="index"
           >
             <v-list-item-content>
               <v-list-item-title>{{ exercise.name }}</v-list-item-title>
+
 
               <template v-if="exercise.type === 'cardio'">
                 <v-list-item-subtitle>
@@ -139,15 +125,10 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 const workouts = {
-  individual: [
+  workout: [
     { name: "Bench Press", sets: 3, reps: 10, weight: 135, type: "weight", completed: false },
     { name: "Squat", sets: 4, reps: 8, weight: 185, type: "weight", completed: false },
     { name: "5K Run", goalMiles: 3.1, goalPace: "8:30", type: "cardio", mileTimes: "", actualMiles: 0, completed: false },
-  ],
-  team: [
-    { name: "Rowing", sets: 3, reps: 500, type: "weight", completed: false },
-    { name: "Push Ups", sets: 3, reps: 20, type: "weight", completed: false },
-    { name: "2 Mile Run", goalMiles: 2, goalPace: "9:00", type: "cardio", mileTimes: "", actualMiles: 0, completed: false },
   ],
 };
 
@@ -251,7 +232,7 @@ function endWorkout() {
 
   if (completedWorkouts.value.length < 2) {
     const next =
-      activeWorkout.value === "individual" ? "team" : "individual";
+      activeWorkout.value === "workout";
     activeWorkout.value = null;
     setTimeout(() => selectWorkout(next), 1500);
   } else {
@@ -260,7 +241,7 @@ function endWorkout() {
     setTimeout(() => router.push({ name: "athlete-homepage" }), 3000);
   }
 }
-
+ {{ activeWorkout.name || 'Workout' }}
 function completeWorkout() {
   endWorkout();
 }
