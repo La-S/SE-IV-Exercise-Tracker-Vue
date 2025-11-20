@@ -1,5 +1,30 @@
 <template>
   <v-container class="pa-4 text-center">
+
+     <!-- Sticky Workout Timer (shows when workout is active and started) -->
+     <v-card 
+      v-if="activeWorkout && timerStarted"
+      class="pa-3 mb-4"
+      color="primary"
+      variant="tonal"
+      style="position: sticky; top: 0; z-index: 10;"
+    >
+      <div class="d-flex justify-space-between align-center">
+        <div>
+          <div class="text-caption">Timer</div>
+          <div class="text-h5 font-weight-bold">{{ formatTime(workoutTime) }}</div>
+        </div>
+        <v-btn
+          @click="toggleTimer"
+          :color="timerPaused ? 'warning' : 'success'"
+          size="small"
+          variant="outlined"
+        >
+          {{ timerPaused ? 'Resume' : 'Pause' }}
+        </v-btn>
+      </div>
+    </v-card>
+
     <template v-if="!activeWorkout && !allWorkoutsCompleted">
       <v-row justify="center" align="center" class="mt-6">
         <v-col cols="12">
@@ -192,24 +217,21 @@
         hide-details
       />
     </v-card>
-  </div>
-</template>
+    </div>
+    </template>
 
+    
 
       <!-- COMPLETED CHECKBOX -->
-      <div class="d-flex align-items-start justify-between mt-3">
+      <div class=" align-items-start">
  
-  <v-checkbox
-    color="primary"
-    v-model="exercise.completed"
-    @change="handleSetCompletion(exercise)"
-    class="mt-0"
-  />
- <span class="text-caption">Mark exercise complete</span>
-</div>
-
-
-
+        <v-checkbox
+          color="primary"
+          v-model="exercise.completed"
+          label="Mark exercise complete"
+          @change="handleSetCompletion(exercise)"
+        />
+      </div>
 
     </v-card>
   </v-list-item>
@@ -450,6 +472,20 @@ function handleSetCompletion(exercise) {
   }
 }
 
+async function completeWorkout() {
+  if (!activeWorkout.value) return;
+
+  clearInterval(workoutInterval);
+  clearInterval(restInterval);
+  restActive.value = false;
+  timerStarted.value = false;
+  timerPaused.value = false;
+
+  await submitWorkout();
+
+  showEndModal.value = true;
+}
+
 function startRestTimer(duration = 60) {
   clearInterval(restInterval);
   restActive.value = true;
@@ -480,7 +516,6 @@ function formatWorkoutDate(dateString) {
   return `${month}/${day}/${year}`;
 }
 
-// --- NEW FUNCTION: submit all actual values for workout and exercises ---
 async function submitWorkout() {
   if (!activeWorkout.value) return;
 
@@ -488,32 +523,30 @@ async function submitWorkout() {
   if (!userId) return;
 
   try {
-    // 1. Update workout total time and date completed
-    await apiClient.post(`workout/user/${userId}`, {
-      workout_id: activeWorkout.value.id,
-      total_time: workoutTime.value,
-      date_completed: new Date().toISOString(),
+    await apiClient.put(`workout/${activeWorkout.value.id}`, {
+      totalTime: workoutTime.value,
+      date: new Date().toISOString(),
     });
 
-    // 2. Update all exercise sets with actuals
     for (const exercise of currentExercises.value) {
-      for (let i = 0; i < exercise.sets.length; i++) {
-        await apiClient.post(`exercise/${exercise.id}/sets`, {
-          actual_reps: exercise.actualReps[i],
-          actual_weight: exercise.actualWeight[i],
-          actual_time: exercise.actualTime[i],
-          actual_dist: exercise.actualMiles[i],
-          set_index: i,
+      const setsResponse = await apiClient.get(`exercise/${exercise.id}/sets`);
+      const sets = Array.isArray(setsResponse.data) ? setsResponse.data : [];
+
+      for (let i = 0; i < sets.length; i++) {
+        await apiClient.put(`set/${sets[i].id}`, {
+          actualReps: exercise.actualReps[i],
+          actualWeight: exercise.actualWeight[i],
+          actualTime: exercise.actualTime[i],
+          actualDist: exercise.actualMiles[i],
         });
       }
     }
 
-    // Mark workout as completed locally
+    const response = await apiClient.put(`workout/user/${userId}/dated`, body);
     if (!completedWorkouts.value.includes(activeWorkout.value)) {
       completedWorkouts.value.push(activeWorkout.value);
     }
 
-    activeWorkout.value = null;
     if (completedWorkouts.value.length >= weeklyWorkouts.value.length) {
       allWorkoutsCompleted.value = true;
       setTimeout(() => router.push({ name: "athlete-homepage" }), 3000);
@@ -521,8 +554,10 @@ async function submitWorkout() {
 
   } catch (err) {
     console.error("Error submitting workout:", err);
+    alert("Failed to save workout. Please try again.");
   }
 }
+
 
 function confirmEndWorkout() {
   showEndModal.value = false;
@@ -560,12 +595,10 @@ onMounted(fetchWorkouts);
 }
 
 .workout-card {
-  /* Use theme surface for background */
   background-color: var(--v-theme-card);
-  /* Use theme text color */
   color: var(--v-theme-on-surface, var(--v-theme-text));
   border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); /* subtle shadow for depth */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); 
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
   overflow: hidden;
@@ -593,5 +626,4 @@ onMounted(fetchWorkouts);
   margin-top: 4px;
   font-weight: 500;
 }
-
 </style>
