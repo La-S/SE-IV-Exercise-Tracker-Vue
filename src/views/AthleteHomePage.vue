@@ -2,8 +2,7 @@
   <v-container class="py-4 px-3" fluid>
     <v-row class="mb-4" dense>
       <v-col cols="12">
-        <v-card class="pa-3 elevation-2" rounded="xl">
-          <v-btn
+        <v-btn
             color="primary"
             size="large"
             block
@@ -12,6 +11,7 @@
            >
              Go To Workouts
           </v-btn>
+        <v-card class="pa-3 elevation-2" rounded="xl">
 
           <v-card-title class="text-subtitle-1 font-weight-bold">
             This Week’s Workouts
