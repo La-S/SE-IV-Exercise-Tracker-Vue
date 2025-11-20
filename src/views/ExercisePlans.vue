@@ -1523,22 +1523,23 @@ watch(editExerciseDialog, (isOpen) => {
                       <template #append>
                         <div class="d-flex align-center">
                           <v-btn
-                            icon
                             variant="text"
                             color="primary"
                             size="small"
+                            prepend-icon="mdi-pencil"
+                            class="mr-2"
                             @click.stop="openLibraryExerciseEditor(exercise)"
                           >
-                            <v-icon size="18">mdi-pencil</v-icon>
+                            Edit Template
                           </v-btn>
                           <v-btn
-                            icon
                             variant="text"
                             color="error"
                             size="small"
+                            prepend-icon="mdi-delete"
                             @click.stop="confirmAvailableExerciseDeletion(exercise)"
                           >
-                            <v-icon size="18">mdi-delete</v-icon>
+                            Delete Template
                           </v-btn>
                         </div>
                       </template>
@@ -1634,7 +1635,20 @@ watch(editExerciseDialog, (isOpen) => {
                       v-for="(set, index) in draft.sets"
                       :key="index"
                       class="pa-3 rounded-lg mb-3"
+                      style="background-color: rgba(255,255,255,0.04);"
                     >
+                      <div class="d-flex justify-space-between align-center mb-2">
+                        <span class="text-body-2 font-weight-medium">Set {{ index + 1 }}</span>
+                        <v-btn
+                          variant="tonal"
+                          color="error"
+                          size="small"
+                          prepend-icon="mdi-delete"
+                          @click="removeDraftSet(draft, index)"
+                        >
+                          Remove
+                        </v-btn>
+                      </div>
                       <v-row>
                         <v-col cols="12" md="4" v-if="draft.templateType === 'strength'">
                           <v-text-field
@@ -1708,17 +1722,6 @@ watch(editExerciseDialog, (isOpen) => {
                             prepend-inner-icon="mdi-timer-outline"
                             density="comfortable"
                           />
-                        </v-col>
-                        <v-col cols="12" md="2" class="d-flex align-end justify-end">
-                          <v-btn
-                            icon
-                            variant="text"
-                            color="error"
-                            size="small"
-                            @click="removeDraftSet(draft, index)"
-                          >
-                            <v-icon size="18">mdi-delete</v-icon>
-                          </v-btn>
                         </v-col>
                       </v-row>
                     </div>
@@ -1942,6 +1945,18 @@ watch(editExerciseDialog, (isOpen) => {
               class="pa-3 rounded-lg mb-3"
               style="background-color: rgba(255,255,255,0.04);"
             >
+              <div class="d-flex justify-space-between align-center mb-2">
+                <span class="text-body-2 font-weight-medium">Set {{ index + 1 }}</span>
+                <v-btn
+                  variant="tonal"
+                  color="error"
+                  size="small"
+                  prepend-icon="mdi-delete"
+                  @click="removeDraftSet(planExerciseDraft, index)"
+                >
+                  Remove
+                </v-btn>
+              </div>
               <v-row>
                 <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
                   <v-text-field
@@ -2010,17 +2025,6 @@ watch(editExerciseDialog, (isOpen) => {
                     prepend-inner-icon="mdi-timer-outline"
                     density="comfortable"
                   />
-                </v-col>
-                <v-col cols="12" md="2" class="d-flex align-end justify-end">
-                  <v-btn
-                    icon
-                    variant="text"
-                    color="error"
-                    size="small"
-                    @click="removeDraftSet(planExerciseDraft, index)"
-                  >
-                    <v-icon size="18">mdi-delete</v-icon>
-                  </v-btn>
                 </v-col>
               </v-row>
             </div>
