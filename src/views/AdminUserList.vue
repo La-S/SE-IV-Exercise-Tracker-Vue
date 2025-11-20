@@ -46,7 +46,20 @@ const saveRole = (user) =>{
 
 <template>
   <v-container>
+    <v-container class="user-table-title">
+      <v-text-field
+          v-model="search"
+          label="Search"
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          flat
+          hide-details
+          single-line
+        ></v-text-field>
+    </v-container>
+    <v-divider></v-divider>
     <v-data-table
+      v-model:search="search"
       :headers="headers"
       :filter-keys="['firstName', 'lastName', 'email']"
       :items="users"
