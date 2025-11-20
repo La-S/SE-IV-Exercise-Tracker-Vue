@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
 
@@ -43,6 +44,8 @@ const selectedExerciseIds = ref([]);
 const showInlineExerciseForm = ref(false);
 const exerciseSearch = ref("");
 const exerciseFocusFilter = ref("all");
+const route = useRoute();
+const router = useRouter();
 
 const newPlanDialog = ref(false);
 const editPlanDialog = ref(false);
@@ -246,6 +249,21 @@ watch(
   }
 );
 
+const shouldOpenNewPlanDialog = (value) =>
+  value === "true" || value === "1" || value === true;
+
+watch(
+  () => route.query.newPlan,
+  async (value) => {
+    if (shouldOpenNewPlanDialog(value) && !newPlanDialog.value) {
+      await nextTick();
+      newPlanDialog.value = true;
+      clearNewPlanQueryFlag();
+    }
+  },
+  { immediate: true }
+);
+
 const setTemplateLookup = () => {
   templateLookup = new Map(availableExercises.value.map((exercise) => [exercise.id, exercise]));
 };
@@ -405,6 +423,12 @@ const loadPlans = async () => {
     exercisesLoading.value = false;
     teamsLoading.value = false;
   }
+};
+
+const clearNewPlanQueryFlag = () => {
+  const nextQuery = { ...route.query };
+  delete nextQuery.newPlan;
+  router.replace({ query: nextQuery });
 };
 
 const resetInlineExercise = () => {
