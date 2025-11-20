@@ -595,8 +595,16 @@ const createInlineExercise = async () => {
 const sortedExercises = computed(() => {
   const term = exerciseSearch.value.trim().toLowerCase();
   const focus = exerciseFocusFilter.value !== "all" ? exerciseFocusFilter.value : null;
+  const plan = selectedPlan.value;
+  const usedTemplateIds = new Set(
+    plan?.exercises.map((exercise) => exercise.templateId) ?? []
+  );
 
   return availableExercises.value.filter((exercise) => {
+    if (usedTemplateIds.has(exercise.id)) {
+      return false;
+    }
+
     const name = exercise.name.toLowerCase();
     const type = exercise.type.toLowerCase();
     const muscle = (exercise.muscleGroup || "").toLowerCase();
