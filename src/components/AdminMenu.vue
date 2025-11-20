@@ -18,8 +18,8 @@ const logoURL = ref("");
 const menuOpen = ref(false);
 
 const navItems = [
-  { label: "Users", name: "userList" },
-  { label: "Teams", name: "teamList" },
+  // { label: "Users", name: "userList" },
+  // { label: "Teams", name: "teamList" },
 ];
 
 const resetMenu = () => {
