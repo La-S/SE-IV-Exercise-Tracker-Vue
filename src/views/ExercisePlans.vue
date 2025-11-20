@@ -496,7 +496,7 @@ const validateExerciseDraft = (draft) => {
   }
   const type = draft.templateType;
 
-  const allSetsValid = draft.sets.every((set, idx) => {
+  const allSetsValid = draft.sets.every((set) => {
     const weight = normalizeNumber(set.goalWeight);
     const reps = normalizeNumber(set.goalReps);
     const time = normalizeNumber(set.goalTime);
@@ -507,7 +507,7 @@ const validateExerciseDraft = (draft) => {
       return weight !== null && reps !== null;
     }
     if (type === "cardio") {
-      return dist !== null && !!units && time !== null;
+      return dist !== null && !!units;
     }
     // mobility/other
     return reps !== null || time !== null;
@@ -518,7 +518,7 @@ const validateExerciseDraft = (draft) => {
       return "Strength sets require weight and reps.";
     }
     if (type === "cardio") {
-      return "Cardio sets require distance, units, and time.";
+      return "Cardio sets require distance and units";
     }
     return "Sets require at least reps or time.";
   }
@@ -530,7 +530,7 @@ const mapDraftSetToPayload = (draftType, set) => ({
   goalWeight: draftType === "strength" ? normalizeNumber(set.goalWeight) : null,
   goalReps: draftType === "cardio" ? null : normalizeNumber(set.goalReps),
   goalDist: draftType === "cardio" ? normalizeNumber(set.goalDist) : null,
-  goalTime: normalizeNumber(set.goalTime),
+  goalTime: draftType === "cardio" ? null : normalizeNumber(set.goalTime),
   distUnits: draftType === "cardio" ? (set.distUnits || "").toString().trim() || null : null,
 });
 
@@ -1370,8 +1370,7 @@ watch(editExerciseDialog, (isOpen) => {
                                     {{ set.goalWeight ?? "-" }} lbs × {{ set.goalReps ?? "-" }} reps
                                   </span>
                                   <span v-else-if="exercise.type.toLowerCase() === 'cardio'">
-                                    {{ set.goalDist ?? "-" }} {{ set.distUnits || "" }} in
-                                    {{ set.goalTime ?? "-" }} s
+                                    {{ set.goalDist ?? "-" }} {{ set.distUnits || "" }}
                                   </span>
                                   <span v-else>
                                     {{ set.goalReps ?? set.goalTime ?? "-" }}
@@ -1670,16 +1669,6 @@ watch(editExerciseDialog, (isOpen) => {
                         </v-col>
                         <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
                           <v-text-field
-                            v-model="set.goalTime"
-                            label="Target time (sec)"
-                            type="number"
-                            prepend-inner-icon="mdi-timer-outline"
-                            density="comfortable"
-                          />
-                        </v-col>
-
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
-                          <v-text-field
                             v-model="set.goalDist"
                             label="Goal distance"
                             type="number"
@@ -1695,16 +1684,6 @@ watch(editExerciseDialog, (isOpen) => {
                             density="comfortable"
                           />
                         </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
-                          <v-text-field
-                            v-model="set.goalTime"
-                            label="Target time (sec)"
-                            type="number"
-                            prepend-inner-icon="mdi-timer-outline"
-                            density="comfortable"
-                          />
-                        </v-col>
-
                         <v-col cols="12" md="4" v-if="draft.templateType !== 'strength' && draft.templateType !== 'cardio'">
                           <v-text-field
                             v-model="set.goalReps"
@@ -1714,7 +1693,7 @@ watch(editExerciseDialog, (isOpen) => {
                             density="comfortable"
                           />
                         </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType !== 'strength'">
+                        <v-col cols="12" md="4" v-if="draft.templateType !== 'strength' && draft.templateType !== 'cardio'">
                           <v-text-field
                             v-model="set.goalTime"
                             label="Target time (sec)"
@@ -1994,16 +1973,6 @@ watch(editExerciseDialog, (isOpen) => {
                     density="comfortable"
                   />
                 </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
-                  <v-text-field
-                    v-model="set.goalTime"
-                    label="Target time (sec)"
-                    type="number"
-                    prepend-inner-icon="mdi-timer-outline"
-                    density="comfortable"
-                  />
-                </v-col>
-
                 <v-col
                   cols="12"
                   md="4"
@@ -2017,7 +1986,7 @@ watch(editExerciseDialog, (isOpen) => {
                     density="comfortable"
                   />
                 </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType !== 'strength'">
+                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType !== 'strength' && planExerciseDraft.templateType !== 'cardio'">
                   <v-text-field
                     v-model="set.goalTime"
                     label="Target time (sec)"
