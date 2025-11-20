@@ -133,6 +133,15 @@ const teamAssignment = reactive({
   successMessage: "",
 });
 
+const assignmentDisabledReason = computed(() => {
+  if (teamAssignment.pending) return "";
+  if (!selectedPlan.value) return "Select a workout plan.";
+  if (!selectedPlan.value.exercises.length) return "Add at least one exercise to the plan.";
+  if (!teamAssignment.selectedTeamIds.length) return "Select at least one team.";
+  if (!teamAssignment.assignmentDate) return "Choose an assignment date.";
+  return "";
+});
+
 const formatLabel = (value) => {
   if (!value && value !== 0) return "";
   const label = String(value);
@@ -697,6 +706,11 @@ const assignWorkoutToTeams = async () => {
     !teamAssignment.selectedTeamIds.length ||
     teamAssignment.pending
   ) {
+    return;
+  }
+  const disabledReason = assignmentDisabledReason.value;
+  if (disabledReason) {
+    teamAssignment.error = disabledReason;
     return;
   }
   teamAssignment.error = null;
@@ -1520,6 +1534,15 @@ watch(editExerciseDialog, (isOpen) => {
               >
                 {{ teamAssignment.successMessage }}
               </v-alert>
+              <v-alert
+                v-if="assignmentDisabledReason && !teamAssignment.pending"
+                type="info"
+                variant="tonal"
+                density="comfortable"
+                class="mt-3"
+              >
+                {{ assignmentDisabledReason }}
+              </v-alert>
             </div>
           </v-card-text>
           <v-card-actions class="px-4 pb-4">
@@ -1528,7 +1551,7 @@ watch(editExerciseDialog, (isOpen) => {
               color="primary"
               :disabled="
                 !selectedPlan ||
-                !teamAssignment.selectedTeamIds.length ||
+                !!assignmentDisabledReason ||
                 teamAssignment.pending ||
                 teamsLoading
               "
