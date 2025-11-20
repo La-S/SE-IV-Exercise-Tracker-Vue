@@ -77,8 +77,8 @@ const saveRole = (user) =>{
 }
 
 .save-btn{
-  background-color: #58f707;
-  color: #F2F3F4
+  background-color: #1A2D10;
+  color: #58f707
 }
 .combobox-holder{
   max-width: 200px;
