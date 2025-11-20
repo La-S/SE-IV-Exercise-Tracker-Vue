@@ -9,10 +9,12 @@ const search = ref('');
 
 const selectedUser = ref(null);
 const headers = ref([
-  {title: "email", align: "start", sortable: true, key:"email"},
+  {title: "id", align: "start", sortable: true, key:"id"},
+  {title: "email", align: "end", sortable: true, key:"email"},
   {title: "First Name", align: "end", sortable: true, key:"firstName"},
   {title: "Last Name", align: "end", sortable: true, key:"lastName"},
   {title: "Role", align: "end", sortable: true, key:"role"},
+  {title: "Save Role change", align:"end", key:"save"}
 ])
 
 const loadUsers = async () => {
@@ -31,7 +33,14 @@ onMounted(() => {
   loadUsers();
 });
 
-
+const saveRole = (user) =>{
+  let userValues = user.columns;
+  let id = userValues.id;
+  let role = userValues.role;
+  let body = {};
+  body.role = role;
+  apiClient.put(`users/${id}/role`, body);
+}
 
 </script>
 
@@ -52,6 +61,11 @@ onMounted(() => {
           ></v-combobox>
         </v-container>  
       </template>
+      <template v-slot:item.save="{ item }"> 
+        <v-container> 
+          <v-btn class="save-btn" @click="saveRole(item)">Save</v-btn>
+        </v-container>  
+      </template>
     </v-data-table>
 
   </v-container>
@@ -62,6 +76,10 @@ onMounted(() => {
   height: 100%;
 }
 
+.save-btn{
+  background-color: #58f707;
+  color: #F2F3F4
+}
 .combobox-holder{
   max-width: 200px;
   padding-right:0px;
