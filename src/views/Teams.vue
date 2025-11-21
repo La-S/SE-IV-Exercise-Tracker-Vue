@@ -256,6 +256,8 @@ const email = (email) => {
 const viewAthleteInfo = (athlete) => {
    router.push({ path: `athlete-info/${athlete.id}`,  });
 }
+
+const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) => {return a.lastName > b.lastName}));
 </script>
 
 <template>
@@ -283,9 +285,9 @@ const viewAthleteInfo = (athlete) => {
             <v-list density="compact" nav>
               <template v-for="section in teamSections" :key="section.type">
                 <span v-if="section?.type !== 'others' || section.teams.length > 0">
-                  <v-subheader class="text-uppercase font-weight-medium">
+                  <div class="text-uppercase font-weight-medium">
                     {{ section.label }}
-                  </v-subheader>
+                  </div>
                   <v-alert v-if="section.teams.length === 0" variant="tonal" type="info">
                     You don't have any teams. Use the + button to get started.
                   </v-alert>
@@ -365,7 +367,7 @@ const viewAthleteInfo = (athlete) => {
 
                 <v-expansion-panels v-else>
                   <v-expansion-panel
-                    v-for="athlete in selectedTeam.athletes ?? []"
+                    v-for="athlete in sortedAthletes ?? []"
                     :key="athlete.id"
                   >
                     <v-expansion-panel-title>
