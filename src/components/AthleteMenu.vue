@@ -3,11 +3,9 @@ import { ref, computed, onMounted } from "vue";
 import Utils from "../config/utils";
 import AuthServices from "../services/authServices";
 import { useRouter, useRoute } from "vue-router";
-import { useTheme } from "vuetify";
 
 const router = useRouter();
 const route = useRoute();
-const theme = useTheme();
 
 const drawer = ref(false);
 const user = ref(null);
@@ -72,10 +70,6 @@ const logout = () => {
     .catch((error) => console.log("Logout error:", error));
 };
 
-const toggleTheme = () => {
-  theme.global.name.value = theme.global.current.value.dark ? "light" : "dark";
-};
-
 function goTo(name) {
   router.push({ name });
 }
@@ -96,90 +90,96 @@ onMounted(() => {
   }
 });
 </script>
-<template>
-    <v-app-bar app color="dark" dark>
-      <v-toolbar-title class="text-h6 font-weight-bold">Training</v-toolbar-title>
-  
-      <v-spacer></v-spacer>
-  
-      <div class="d-none d-md-flex">
-        <v-btn
-          text
-          v-for="item in athleteMenuItems"
-          :key="item.title"
-          @click="goTo(item.route)"
-        >
-          {{ item.title }}
-        </v-btn>
-      </div>
-  
-      <v-btn
-        icon
-        @click="toggleTheme"
-        :title="theme.global.current.value.dark ? 'Light mode' : 'Dark mode'"
-      >
-        <v-icon>
-          {{ theme.global.current.value.dark ? "mdi-weather-sunny" : "mdi-weather-night" }}
-        </v-icon>
-      </v-btn>
 
-      <v-menu bottom min-width="200px" rounded offset-y v-if="user">
-        <template #activator="{ props }">
-          <v-btn v-bind="props" icon>
-            <v-avatar color="primary">
-              <span class="text-white font-weight-bold">{{ initials }}</span>
-            </v-avatar>
-          </v-btn>
-        </template>
-  
-        <v-card>
-          <v-card-text class="text-center">
-            <v-avatar color="primary" size="48" class="mb-3">
-              <span class="text-white font-weight-bold">{{ initials }}</span>
-            </v-avatar>
-            <h3 class="text-h6">{{ name }}</h3>
-            <p class="text-body-2">{{ user.email }}</p>
-            <v-divider class="my-3"></v-divider>
-            <v-btn variant="text" @click="logout" color="error">Logout</v-btn>
-          </v-card-text>
-        </v-card>
-      </v-menu>
-  
-      <v-app-bar-nav-icon
-        class="d-md-none ml-2"
-        @click="drawer = !drawer"
-      />
-    </v-app-bar>
-  
-    <v-navigation-drawer
-      v-model="drawer"
-      app
-      temporary
-      location="right"
-      class="d-md-none athlete-drawer"
-    >
-      <v-list class="text-left pr-4">
-        <v-list-item
-          v-for="item in athleteMenuItems"
-          :key="item.title"
-          @click="() => { goTo(item.route); drawer = false; }"
-        >
-          <v-list-item-title class="font-weight-medium text-left pl-2">
-            {{ item.title }}
-          </v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-navigation-drawer>
-  </template>
+<template>
+  <v-app-bar app color="menubar" class="app-toolbar" dark>
+    <v-toolbar-title class="text-h6 font-weight-bold">Training</v-toolbar-title>
+
+    <v-spacer></v-spacer>
+
+    <div class="d-none d-md-flex">
+      <v-btn
+        variant="text"
+        v-for="item in athleteMenuItems"
+        :key="item.title"
+        @click="goTo(item.route)"
+      >
+        {{ item.title }}
+      </v-btn>
+    </div>
+
+    <v-menu bottom min-width="200px" rounded offset-y v-if="user">
+      <template #activator="{ props }">
+        <v-btn v-bind="props" icon>
+          <v-avatar color="primary">
+            <span class="text-white font-weight-bold">{{ initials }}</span>
+          </v-avatar>
+        </v-btn>
+      </template>
+
+      <v-card>
+        <v-card-text class="text-center">
+          <v-avatar color="primary" size="48" class="mb-3">
+            <span class="text-white font-weight-bold">{{ initials }}</span>
+          </v-avatar>
+          <h3 class="text-h6">{{ name }}</h3>
+          <p class="text-body-2">{{ user.email }}</p>
+          <v-divider class="my-3"></v-divider>
+          <v-btn variant="text" @click="logout" color="error">Logout</v-btn>
+        </v-card-text>
+      </v-card>
+    </v-menu>
+
+    <v-app-bar-nav-icon class="d-md-none ml-2" @click="drawer = !drawer" />
+  </v-app-bar>
+
+  <v-navigation-drawer
+    v-model="drawer"
+    app
+    temporary
+    location="right"
+    class="d-md-none athlete-drawer"
+  >
+    <v-list class="text-left pr-4">
+      <v-list-item
+        v-for="item in athleteMenuItems"
+        :key="item.title"
+        @click="
+          () => {
+            goTo(item.route);
+            drawer = false;
+          }
+        "
+      >
+        <v-list-item-title class="font-weight-medium text-left pl-2">
+          {{ item.title }}
+        </v-list-item-title>
+      </v-list-item>
+    </v-list>
+  </v-navigation-drawer>
+</template>
+
 <style scoped>
+.app-toolbar {
+  border-bottom: 1px solid var(--v-theme-border);
+}
+
 .v-toolbar-title {
   font-weight: 600;
- 
+  color: var(--v-theme-menubarText);
 }
-.v-navigation-drawer {
-  background-color: #f9f9f9;
-}
+
 .v-btn {
   font-weight: 500;
 }
-</style>  
+
+.athlete-drawer {
+  background-color: var(--v-theme-drawer) !important;
+  color: var(--v-theme-text);
+  border-left: 1px solid var(--v-theme-border);
+}
+
+.athlete-drawer :deep(.v-list-item-title) {
+  color: var(--v-theme-text);
+}
+</style>

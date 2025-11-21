@@ -494,6 +494,19 @@ const createEmptySetForType = (type) => ({
   distUnits: type === "cardio" ? "" : "",
 });
 
+const cloneSetFromSource = (source, type) => {
+  const next = createEmptySetForType(type);
+  if (!source) {
+    return next;
+  }
+  next.goalWeight = source.goalWeight ?? next.goalWeight;
+  next.goalReps = source.goalReps ?? next.goalReps;
+  next.goalTime = source.goalTime ?? next.goalTime;
+  next.goalDist = source.goalDist ?? next.goalDist;
+  next.distUnits = source.distUnits ?? next.distUnits;
+  return next;
+};
+
 const createDraftFromTemplate = (template) => ({
   templateId: template?.id ?? null,
   templateName: template?.name ?? "Exercise",
@@ -531,7 +544,9 @@ const returnToTemplateSelection = () => {
 };
 
 const addDraftSet = (draft) => {
-  draft.sets.push(createEmptySetForType(draft.templateType));
+  const templateType = draft.templateType ?? "other";
+  const baseSet = draft.sets?.[0];
+  draft.sets.push(cloneSetFromSource(baseSet, templateType));
 };
 
 const removeDraftSet = (draft, index) => {
@@ -1404,7 +1419,7 @@ watch(editExerciseDialog, (isOpen) => {
                         <v-col cols="12" md="8">
                           <p class="text-body-2 mb-2">{{ exercise.notes || "No notes" }}</p>
                         </v-col>
-                        <v-col cols="12" md="4" class="d-flex flex-column align-start">
+                        <v-col cols="12" md="4" class="d-flex flex-column align-end text-right">
                           <v-chip color="secondary" variant="elevated" class="mb-2">
                             Rest: {{ exercise.restTimer }}s
                           </v-chip>
@@ -1817,81 +1832,84 @@ watch(editExerciseDialog, (isOpen) => {
                     No sets added yet.
                   </v-alert>
                   <div v-else>
-                    <div
-                      v-for="(set, index) in draft.sets"
-                      :key="index"
-                      class="pa-3 rounded-lg mb-3"
-                      style="background-color: rgba(255,255,255,0.04);"
-                    >
-                      <div class="d-flex justify-space-between align-center mb-2">
-                        <span class="text-body-2 font-weight-medium">Set {{ index + 1 }}</span>
-                        <v-btn
-                          variant="tonal"
-                          color="error"
-                          size="small"
-                          prepend-icon="mdi-delete"
-                          @click="removeDraftSet(draft, index)"
-                        >
-                          Remove
-                        </v-btn>
-                      </div>
-                      <v-row>
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'strength'">
-                          <v-text-field
-                            v-model="set.goalWeight"
-                            label="Goal weight (lbs)"
-                            type="number"
-                            prepend-inner-icon="mdi-weight-lifter"
-                            density="comfortable"
-                          />
-                        </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'strength'">
-                          <v-text-field
-                            v-model="set.goalReps"
-                            label="Goal reps"
-                            type="number"
-                            prepend-inner-icon="mdi-counter"
-                            density="comfortable"
-                          />
-                        </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
-                          <v-text-field
-                            v-model="set.goalDist"
-                            label="Goal distance"
-                            type="number"
-                            prepend-inner-icon="mdi-ruler"
-                            density="comfortable"
-                          />
-                        </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType === 'cardio'">
-                          <v-select
-                            v-model="set.distUnits"
-                            :items="cardioDistanceUnits"
-                            label="Distance units"
-                            prepend-inner-icon="mdi-ruler-square"
-                            density="comfortable"
-                          />
-                        </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType !== 'strength' && draft.templateType !== 'cardio'">
-                          <v-text-field
-                            v-model="set.goalReps"
-                            label="Goal reps"
-                            type="number"
-                            prepend-inner-icon="mdi-counter"
-                            density="comfortable"
-                          />
-                        </v-col>
-                        <v-col cols="12" md="4" v-if="draft.templateType !== 'strength' && draft.templateType !== 'cardio'">
-                          <v-text-field
-                            v-model="set.goalTime"
-                            label="Target time (sec)"
-                            type="number"
-                            prepend-inner-icon="mdi-timer-outline"
-                            density="comfortable"
-                          />
-                        </v-col>
-                      </v-row>
-                    </div>
+                    <v-row dense class="set-card-grid">
+                      <v-col
+                        v-for="(set, setIndex) in draft.sets"
+                        :key="`draft-${draft.templateId}-set-${setIndex}-${set.id || 'new'}`"
+                        cols="12"
+                        md="6"
+                      >
+                        <v-card variant="outlined" class="set-card h-100">
+                          <div class="set-card__header">
+                            <div>
+                              <div class="text-caption text-medium-emphasis">Set</div>
+                              <div class="text-subtitle-2 font-weight-medium">#{{ setIndex + 1 }}</div>
+                            </div>
+                            <v-btn
+                              icon="mdi-close"
+                              variant="text"
+                              color="error"
+                              size="small"
+                              @click="removeDraftSet(draft, setIndex)"
+                            />
+                          </div>
+                          <v-divider class="my-3" />
+                          <v-row dense>
+                            <template v-if="draft.templateType === 'strength'">
+                              <v-col cols="12" md="4">
+                                <v-text-field
+                                  v-model="set.goalWeight"
+                                  label="Goal weight (lbs)"
+                                  type="number"
+                                  prepend-inner-icon="mdi-weight-lifter"
+                                  density="comfortable"
+                                />
+                              </v-col>
+                              <v-col cols="12" md="4">
+                                <v-text-field
+                                  v-model="set.goalReps"
+                                  label="Goal reps"
+                                  type="number"
+                                  prepend-inner-icon="mdi-counter"
+                                  density="comfortable"
+                                />
+                              </v-col>
+                            </template>
+                            <template v-else-if="draft.templateType === 'cardio'">
+                              <v-col cols="12" md="4">
+                                <v-text-field
+                                  v-model="set.goalDist"
+                                  label="Goal distance"
+                                  type="number"
+                                  prepend-inner-icon="mdi-ruler"
+                                  density="comfortable"
+                                />
+                              </v-col>
+                              <v-col cols="12" md="4">
+                                <v-select
+                                  v-model="set.distUnits"
+                                  :items="cardioDistanceUnits"
+                                  label="Distance units"
+                                  prepend-inner-icon="mdi-ruler-square"
+                                  density="comfortable"
+                                />
+                              </v-col>
+                            </template>
+                            <template v-else>
+                              <v-col cols="12" md="6">
+                                <v-text-field
+                                  v-model="set.goalReps"
+                                  label="Goal reps"
+                                  type="number"
+                                  prepend-inner-icon="mdi-counter"
+                                  density="comfortable"
+                                />
+                              </v-col>
+                            </template>
+                          </v-row>
+                        </v-card>
+                      </v-col>
+                    </v-row>
                   </div>
                   <v-alert
                     v-if="exerciseDraftValidation[index]"
@@ -2175,15 +2193,6 @@ watch(editExerciseDialog, (isOpen) => {
                     density="comfortable"
                   />
                 </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType !== 'strength' && planExerciseDraft.templateType !== 'cardio'">
-                  <v-text-field
-                    v-model="set.goalTime"
-                    label="Target time (sec)"
-                    type="number"
-                    prepend-inner-icon="mdi-timer-outline"
-                    density="comfortable"
-                  />
-                </v-col>
               </v-row>
             </div>
           </div>
@@ -2312,5 +2321,22 @@ watch(editExerciseDialog, (isOpen) => {
 
 .overflow-y-auto {
   overflow-y: auto;
+}
+
+.set-card-grid {
+  margin-top: 8px;
+}
+
+.set-card {
+  border-radius: 12px;
+  padding: 12px;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.set-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 </style>

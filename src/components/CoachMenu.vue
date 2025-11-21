@@ -4,11 +4,9 @@ import { ref, onMounted, computed } from "vue";
 import Utils from "../config/utils";
 import AuthServices from "../services/authServices";
 import { useRouter, useRoute } from "vue-router";
-import { useTheme } from "vuetify";
 
 const router = useRouter();
 const route = useRoute();
-const theme = useTheme();
 
 const user = ref(null);
 const title = ref("Exercise Tracker");
@@ -77,10 +75,6 @@ const logout = () => {
     .catch((error) => console.log("error", error));
 };
 
-const toggleTheme = () => {
-  theme.global.name.value = theme.global.current.value.dark ? "light" : "dark";
-};
-
 onMounted(() => {
   logoURL.value = ExerciseLogo;
   user.value = Utils.getStore("user");
@@ -104,12 +98,11 @@ onMounted(() => {
   <v-app-bar
     app
     density="comfortable"
-    :color="theme.global.current.value.dark ? 'grey-darken-4' : 'grey-lighten-4'"
-    :dark="theme.global.current.value.dark"
-    :light="!theme.global.current.value.dark"
-    elevation="2"
+    color="menubar"
+    class="app-toolbar"
+    dark
+    elevation="0"
   >
-
     <div class="d-flex align-center pl-3">
       <v-img :src="logoURL" height="32" width="32" contain class="mr-2" />
       <span class="text-h6 font-weight-medium title-text">{{ title }}</span>
@@ -129,17 +122,6 @@ onMounted(() => {
       </v-btn>
     </div>
     <v-spacer></v-spacer>
-
-    <v-btn
-      icon
-      variant="text"
-      @click="toggleTheme"
-      :color="theme.global.current.value.dark ? 'white' : 'black'"
-    >
-      <v-icon>
-        {{ theme.global.current.value.dark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}
-      </v-icon>
-    </v-btn>
 
     <v-menu v-model="menuOpen" location="bottom end" transition="scale-transition">
       <template #activator="{ props }">
@@ -164,10 +146,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.app-toolbar {
+  border-bottom: 1px solid var(--v-theme-border);
+}
+
 .title-text {
   white-space: nowrap;
   overflow: visible;
   text-overflow: unset;
+  color: var(--v-theme-menubarText);
 }
 
 .nav-buttons {
