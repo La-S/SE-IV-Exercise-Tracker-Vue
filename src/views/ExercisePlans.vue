@@ -222,15 +222,7 @@ watch(
       exerciseMutationPending.value = false;
       addExerciseStep.value = 1;
       exerciseDrafts.value = [];
-      const plan = selectedPlan.value;
-      if (plan) {
-        const preselected = plan.exercises
-          .map((exercise) => exercise.templateId)
-          .filter((id) => Number.isFinite(id));
-        selectedExerciseIds.value = Array.from(new Set(preselected));
-      } else {
-        selectedExerciseIds.value = [];
-      }
+      selectedExerciseIds.value = [];
     } else {
       resetAddExerciseFlow();
       exerciseMutationError.value = null;
