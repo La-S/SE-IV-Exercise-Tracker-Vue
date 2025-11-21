@@ -17,6 +17,8 @@ const addAthletesError = ref(null);
 
 const router = useRouter();
 
+const athleteSearch = ref("");
+
 const teamSections = computed(() => [
   { label: "Your Teams", type: "team", teams: yourTeams.value },
   { label: "Other Teams", type: "others", teams: otherTeams.value },
@@ -258,6 +260,26 @@ const viewAthleteInfo = (athlete) => {
 }
 
 const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) => {return a.lastName > b.lastName}));
+
+const searchableAthletes = computed(() => {
+  const term = athleteSearch.value.trim().toLowerCase();
+
+  return availableAthletes.value.filter((athlete) => {
+    if (selectedTeam.value.athletes.find((a) => {return a == athlete})) {
+      return false;
+    }
+    
+    if (!term) {
+       return true;
+    }
+    let athleteSearchable = athlete.firstName + " " + athlete.lastName + " " + athlete.email
+    athleteSearchable = athleteSearchable.toLowerCase();
+    if (athleteSearchable.indexOf(term) != -1) {
+      return true;
+    }
+  }).sort((a, b) => {return a.lastName > b.lastName});
+});
+
 </script>
 
 <template>
@@ -430,14 +452,22 @@ const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) =>
           <span>Select Athletes to add to '{{ selectedTeam.name }}'</span>
         </v-card-title>
         <v-card-text>
+          <v-row class="mb-3" dense>
+            <v-text-field
+                v-model="athleteSearch"
+                label="Search athletes"
+                prepend-inner-icon="mdi-magnify"
+                density="comfortable"
+              />
+          </v-row>
           <v-list
-            v-if="selectedTeam.athletes.length < availableAthletes.length"
+            v-if="searchableAthletes.length > 0"
             density="comfortable"
             lines="two"
             style="max-height: 360px; overflow-y: auto;"
           >
             <v-item-group v-model="selectedAthleteIds" multiple>
-              <template v-for="athlete in availableAthletes" :key="athlete.id">
+              <template v-for="athlete in searchableAthletes" :key="athlete.id">
                 <v-item :value="athlete.id" v-if="!isAthleteOnTeam(athlete.id)" v-slot="{ isSelected, toggle }">
                   <v-list-item @click="toggle" class="rounded-lg">
                     <template #prepend>
@@ -455,7 +485,7 @@ const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) =>
             </v-item-group>
           </v-list>
           <v-alert v-else type="info" variant="tonal">
-            No more athletes are available. Tell your athlete to create an account.
+            No more athletes are available. Tell your athlete to create an account, or change your search term.
           </v-alert>
           <v-alert v-if="addAthletesError" type="error" variant="tonal">
            {{addAthletesError}}
