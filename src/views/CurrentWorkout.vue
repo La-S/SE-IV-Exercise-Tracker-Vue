@@ -1,7 +1,5 @@
 <template>
   <v-container class="pa-4 text-center">
-
-     <!-- Sticky Workout Timer (shows when workout is active and started) -->
      <v-card 
       v-if="activeWorkout && timerStarted"
       class="pa-3 mb-4"
@@ -58,7 +56,7 @@
   <div class="text-caption mt-1">{{ workout.notes }}</div>
 </v-card>
     <v-alert v-if="!weeklyWorkouts.length" type="info" variant="tonal">
-      No workouts assigned yet.
+      No workouts assigned yet
     </v-alert>
   </template>
 </v-col>
@@ -115,23 +113,18 @@
     class="mb-4"
   >
     <v-card class="pa-4 w-100" elevation="2" rounded="lg">
-
-      <!-- Exercise Title -->
       <h3 class="text-subtitle-1 font-weight-bold">
         {{ exercise.name }}
       </h3>
 
-      <!-- Muscle + Type -->
       <div class="text-caption mb-3">
         {{ formatLabel(exercise.type) }} • {{ formatLabel(exercise.muscleGroup) }}
       </div>
 
-      <!-- Notes -->
       <div v-if="exercise.notes" class="text-caption mb-2">
         Note: {{ exercise.notes }}
       </div>
 
-      <!-- REST TIMER -->
       <v-chip
         v-if="exercise.restTimer"
         size="small"
@@ -142,7 +135,6 @@
         Rest: {{ exercise.restTimer }}s
       </v-chip>
 
-      <!-- CARDIO LAYOUT -->
       <template v-if="exercise.type === 'cardio'">
         <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
           <div class="font-weight-medium mb-1">Cardio Goal</div>
@@ -172,7 +164,6 @@
         </v-card>
       </template>
 
-      <!-- STRENGTH LAYOUT: MOBILE FRIENDLY SET CARDS -->
       <template v-else>
   <div
     v-for="(set, setIndex) in exercise.sets"
@@ -183,12 +174,10 @@
       variant="tonal"
       rounded="md"
     >
-      <!-- Set Number -->
       <div class="font-weight-medium mb-1">
         Set {{ setIndex + 1 }}
       </div>
-
-      <!-- Goal Info -->
+      
       <div class="text-body-2 mb-2">
         Goal: {{ exercise.reps[setIndex] }} reps  
         <span v-if="exercise.weight[setIndex]">
@@ -196,7 +185,6 @@
         </span>
       </div>
 
-      <!-- Actual Reps Input -->
       <v-text-field
         v-model="exercise.actualReps[setIndex]"
         label="Actual reps"
@@ -207,7 +195,6 @@
         class="mb-2"
       />
 
-      <!-- Actual Weight Input -->
       <v-text-field
         v-model="exercise.actualWeight[setIndex]"
         label="Actual weight (lbs)"
@@ -220,9 +207,6 @@
     </div>
     </template>
 
-    
-
-      <!-- COMPLETED CHECKBOX -->
       <div class=" align-items-start">
  
         <v-checkbox
@@ -415,7 +399,7 @@ async function fetchExercisesForWorkout(workoutId) {
           goalPace: sets.map(s => s.goal_time || null),
           actualMiles: sets.map(s => s.actual_dist || null),
           actualWeight: sets.map(s => s.actual_weight || null),
-          actualTime: sets.map(s => s.actual_time || 0), // Default to 0
+          actualTime: sets.map(s => s.actual_time || 0), 
           actualReps: sets.map(s => s.actual_reps || null),
           mileTimes: "",
         };
@@ -491,8 +475,6 @@ async function completeWorkout() {
   timerPaused.value = false;
 
   await submitWorkout();
-
-  //showEndModal.value = true;
 }
 
 function startRestTimer(duration = 60) {
