@@ -14,7 +14,7 @@ const headers = ref([
   {title: "First Name", align: "end", sortable: true, key:"firstName"},
   {title: "Last Name", align: "end", sortable: true, key:"lastName"},
   {title: "Role", align: "end", sortable: true, key:"role"},
-  {title: "Save Role Change", align:"start", key:"save"}
+  {title: "Actions", align:"start", key:"actions"}
 ])
 
 const loadUsers = async () => {
@@ -31,7 +31,7 @@ const loadUsers = async () => {
 
 onMounted(() => {
   loadUsers();
-});
+}); 
 
 const saveRole = (user) =>{
   let userValues = user.columns;
@@ -40,6 +40,13 @@ const saveRole = (user) =>{
   let body = {};
   body.role = role;
   apiClient.put(`users/${id}/role`, body);
+}
+
+const deleteUser = (user) =>{
+  let userValues = user.columns;
+  let id = userValues.id;
+  apiClient.delete(`users/${id}`);
+  
 }
 
 </script>
@@ -74,9 +81,20 @@ const saveRole = (user) =>{
           ></v-combobox>
         </v-container>  
       </template>
-      <template v-slot:item.save="{ item }"> 
+      <template v-slot:item.actions="{ item }"> 
         <v-container class="save-holder"> 
-          <v-btn class="save-btn" @click="saveRole(item)">Save</v-btn>
+          <v-btn 
+            color="primary" 
+            variant="tonal"
+            class="save-btn" 
+            @click="saveRole(item)">
+            Save</v-btn>
+
+          <v-btn 
+            color="error" 
+            class="delete-btn" 
+            @click="deleteUser(item)">
+            Delete</v-btn>
         </v-container>  
       </template>
     </v-data-table>
@@ -89,10 +107,7 @@ const saveRole = (user) =>{
   height: 100%;
 }
 
-.save-btn{
-  background-color: #1A2D10;
-  color: #58f707
-}
+
 .combobox-holder{
   max-width: 200px;
   padding-right:0px;
@@ -100,7 +115,6 @@ const saveRole = (user) =>{
   margin-top:15px
 }
 .save-holder{
-  max-width: 150px;
   padding-left:0px;
   margin-left:0px;
   margin-bottom:5px;
