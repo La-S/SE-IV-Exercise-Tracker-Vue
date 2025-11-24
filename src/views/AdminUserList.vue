@@ -33,20 +33,20 @@ onMounted(() => {
   loadUsers();
 }); 
 
-const saveRole = (user) =>{
+const saveRole = async (user) =>{
   let userValues = user.columns;
   let id = userValues.id;
   let role = userValues.role;
   let body = {};
   body.role = role;
-  apiClient.put(`users/${id}/role`, body);
+  await apiClient.put(`users/${id}/role`, body);
 }
 
-const deleteUser = (user) =>{
+const deleteUser = async (user) =>{
   let userValues = user.columns;
   let id = userValues.id;
-  apiClient.delete(`users/${id}`);
-  
+  await apiClient.delete(`users/${id}`);
+  loadUsers();
 }
 
 </script>
@@ -82,20 +82,21 @@ const deleteUser = (user) =>{
         </v-container>  
       </template>
       <template v-slot:item.actions="{ item }"> 
-        <v-container class="save-holder"> 
+        <v-row class="save-holder"> 
           <v-btn 
             color="primary" 
             variant="tonal"
             class="save-btn" 
             @click="saveRole(item)">
             Save</v-btn>
-
+            <v-spacer></v-spacer>
           <v-btn 
             color="error" 
+            variant="tonal"
             class="delete-btn" 
             @click="deleteUser(item)">
             Delete</v-btn>
-        </v-container>  
+        </v-row>  
       </template>
     </v-data-table>
 
@@ -107,17 +108,22 @@ const deleteUser = (user) =>{
   height: 100%;
 }
 
+.spacer{
+  width:5px;
+}
 
 .combobox-holder{
   max-width: 200px;
+  min-width: 150px;
   padding-right:0px;
   margin-right:0px;
-  margin-top:15px
+  margin-top:20px
 }
 .save-holder{
   padding-left:0px;
   margin-left:0px;
-  margin-bottom:5px;
+  min-width:175px;
+  max-width:190px;
 }
 .overflow-y-auto {
   overflow-y: auto;
