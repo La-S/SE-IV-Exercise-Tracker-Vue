@@ -5,9 +5,14 @@ import apiClient from "../services/services";
 const users = ref([]);
 const totalUsers = ref(0);
 const search = ref('');
+const selectedUser = ref({
+  id: '',
+  firstName: '',
+  lastName: ''
+});
+const dialog = ref(false)
+const activator = ref(null)
 
-
-const selectedUser = ref(null);
 const headers = ref([
   {title: "id", align: "start", sortable: true, key:"id"},
   {title: "email", align: "end", sortable: true, key:"email"},
@@ -34,7 +39,7 @@ onMounted(() => {
 }); 
 
 const saveRole = async (user) =>{
-  let userValues = user.columns;
+  let userValues = user.raw;
   let id = userValues.id;
   let role = userValues.role;
   let body = {};
@@ -42,11 +47,23 @@ const saveRole = async (user) =>{
   await apiClient.put(`users/${id}/role`, body);
 }
 
-const deleteUser = async (user) =>{
-  let userValues = user.columns;
-  let id = userValues.id;
+const deleteUser = async () =>{
+  let id = selectedUser.value.id;
   await apiClient.delete(`users/${id}`);
   loadUsers();
+  dialog.value = false;
+}
+
+function updateSelectedUser(user){
+  let userValues = user.raw;
+  selectedUser.value.id = userValues.id;
+  selectedUser.value.firstName = userValues.firstName;
+  selectedUser.value.lastName = userValues.lastName;
+  console.log(selectedUser);
+  dialog.value = true;
+}
+const cancel = () => {
+  dialog.value = false;
 }
 
 </script>
@@ -94,13 +111,21 @@ const deleteUser = async (user) =>{
             color="error" 
             variant="tonal"
             class="delete-btn" 
-            @click="deleteUser(item)">
+            @click="updateSelectedUser(item)">
             Delete</v-btn>
         </v-row>  
       </template>
     </v-data-table>
 
   </v-container>
+  
+  <v-dialog v-model="dialog" max-width="500">
+    <v-card>
+      <v-card-text>Are you sure you want to delete {{ selectedUser.firstName }} {{ selectedUser.lastName }}</v-card-text>
+      <v-btn @click="deleteUser">Delete</v-btn>
+      <v-btn @click="cancel">Cancel</v-btn>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
