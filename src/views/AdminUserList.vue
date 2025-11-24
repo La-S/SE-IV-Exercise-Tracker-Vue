@@ -119,23 +119,43 @@ const cancel = () => {
 
   </v-container>
   
-  <v-dialog v-model="dialog" max-width="500">
+  <v-dialog v-model="dialog" max-width="500" scrim="black">
     <v-card>
-      <v-card-text>Are you sure you want to delete {{ selectedUser.firstName }} {{ selectedUser.lastName }}</v-card-text>
-      <v-btn @click="deleteUser">Delete</v-btn>
-      <v-btn @click="cancel">Cancel</v-btn>
+      <v-card-text class="dialog-text">Are you sure you want to delete {{ selectedUser.firstName }} {{ selectedUser.lastName }}</v-card-text>
+      <v-row align="center" justify="center" class="dialog-row">
+        <v-btn color="error" 
+              class="delete-btn-dialog"
+              @click="deleteUser">Delete</v-btn>
+        <v-btn color = "primary"
+              variant = "tonal"
+              @click="cancel">Cancel</v-btn>
+    </v-row>
     </v-card>
   </v-dialog>
 </template>
 
 <style scoped>
+.dialog-text{
+  text-align:center;
+  margin-top:15px;
+  margin-bottom:30px;
+  font-weight: bold;
+}
+.dialog-row{
+  padding-bottom:20px;
+  margin-bottom:0px;
+}
 .h-100 {
   height: 100%;
+}
+.delete-btn-dialog{
+  margin-right:20px;
 }
 
 .spacer{
   width:5px;
 }
+
 
 .combobox-holder{
   max-width: 200px;
