@@ -14,7 +14,7 @@
         </div>
         <v-btn
           @click="toggleTimer"
-          :color="timerPaused ? 'warning' : 'success'"
+          :color="timerPaused ? 'warning' : 'primary'"
           size="small"
           variant="outlined"
         >
@@ -55,7 +55,7 @@
   <div class="date-text">{{ formatWorkoutDate(workout.expected_date) }}</div>
   <div class="text-caption mt-1">{{ workout.notes }}</div>
 </v-card>
-    <v-alert v-if="!weeklyWorkouts.length" type="info" variant="tonal">
+    <v-alert v-if="!weeklyWorkouts.length" type="info" variant="tonal" color="primary">
       No workouts assigned yet
     </v-alert>
   </template>
@@ -79,7 +79,7 @@
           variant="tonal"
           size="small"
           class="ml-2 mb-3"
-          color="success"
+          color="primary"
           :disabled="timerStarted"
           @click="startWorkoutTimer"
         >
@@ -93,6 +93,7 @@
           type="info"
           variant="tonal"
           class="my-4"
+          color="primary"
         >
           <v-progress-circular indeterminate size="20" class="mr-2" />
           Loading exercises...
@@ -128,9 +129,10 @@
       <v-chip
         v-if="exercise.restTimer"
         size="small"
-        color="info"
+        color="primary"
         variant="tonal"
         class="mb-3"
+        
       >
         Rest: {{ exercise.restTimer }}s
       </v-chip>
@@ -220,12 +222,12 @@
     </v-card>
   </v-list-item>
 </v-list>
-        <v-alert v-else type="info" variant="tonal" class="my-4">
+        <v-alert v-else type="info" variant="tonal" class="my-4" color="primary">
           No exercises assigned to this workout yet.
         </v-alert>
 
         <div v-if="restActive" class="my-4">
-          <v-icon color="amber">mdi-timer-sand</v-icon>
+          <v-icon color="primary">mdi-timer-sand</v-icon>
           <span class="ml-2 text-body-1">
             Rest Time: {{ formatTime(restTime) }}
           </span>

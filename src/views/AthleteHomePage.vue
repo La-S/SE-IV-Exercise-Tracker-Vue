@@ -5,6 +5,7 @@
       type="info"
       variant="tonal"
       class="mb-4"
+      color="primary"
     >
       <v-progress-circular indeterminate size="20" class="mr-2" />
       Loading statistics...
@@ -79,7 +80,7 @@
               padding="8"
             ></v-sparkline>
             <div v-else class="text-caption text-center grey--text">
-              No cardio history available yet
+              No cardio data available
             </div>
           </v-card-text>
         </v-card>
@@ -104,7 +105,7 @@
               <span class="font-weight-medium">{{ weight }} lbs</span>
             </div>
             <div v-else class="text-caption text-center grey--text">
-              No lifting history available yet
+              No lifting data available
             </div>
           </v-card-text>
         </v-card>
@@ -117,6 +118,7 @@
 import { ref, computed, onMounted } from "vue";
 import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
+import dayjs from 'dayjs';
 
 const completedThisWeek = ref(0);
 const totalThisWeek = ref(0);
@@ -160,7 +162,7 @@ const formatTimeMinutes = (seconds) => {
 
 const fetchWeeklyStats = async (userId) => {
   try {
-    const body = { startDate: "2025-01-01", endDate: "2025-12-31" };
+    const body = {"startDate": dayjs().subtract(7, 'day').toISOString(), "endDate": dayjs().add(7, 'day').toISOString()}
     const response = await apiClient.post(`workout/user/${userId}/dated`, body);
     const workouts = Array.isArray(response.data) ? response.data : [];
 
@@ -232,10 +234,8 @@ const fetchCardioStats = async (workouts) => {
   }
 };
 
-// Fetch lifting statistics
 const fetchLiftingStats = async (workouts) => {
   try {
-    // Get the most recent completed workout
     const completedWorkouts = workouts
       .filter((w) => w.date != null)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -253,7 +253,6 @@ const fetchLiftingStats = async (workouts) => {
         const setsResponse = await apiClient.get(`exercise/${exercise.id}/sets`);
         const sets = Array.isArray(setsResponse.data) ? setsResponse.data : [];
 
-        // Get max weight from this exercise
         const maxWeight = Math.max(
           ...sets.map((s) => s.actual_weight || 0).filter((w) => w > 0)
         );
