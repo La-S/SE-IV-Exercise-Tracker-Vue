@@ -148,21 +148,23 @@
           </div>
 
           <v-text-field
-            v-model="exercise.actualMiles[0]"
-            label="Actual distance (miles)"
-            type="number"
-            dense
-            hide-details
-            class="mb-2"
-          />
+  v-model="exercise.actualMiles[0]"
+  label="Actual distance (miles)"
+  type="number"
+  dense
+  hide-details
+  class="mb-2"
+  :disabled="!timerStarted"
+/>
 
-          <v-text-field
-            v-model="exercise.actualTime[0]"
-            label="Actual total time (sec)"
-            type="number"
-            dense
-            hide-details
-          />
+<v-text-field
+  v-model="exercise.actualTime[0]"
+  label="Actual total time (sec)"
+  type="number"
+  dense
+  hide-details
+  :disabled="!timerStarted"
+/>
         </v-card>
       </template>
 
@@ -188,23 +190,25 @@
       </div>
 
       <v-text-field
-        v-model="exercise.actualReps[setIndex]"
-        label="Actual reps"
-        type="number"
-        variant="outlined"
-        dense
-        hide-details
-        class="mb-2"
-      />
+  v-model="exercise.actualReps[setIndex]"
+  label="Actual reps"
+  type="number"
+  variant="outlined"
+  dense
+  hide-details
+  class="mb-2"
+  :disabled="!timerStarted"
+/>
 
-      <v-text-field
-        v-model="exercise.actualWeight[setIndex]"
-        label="Actual weight (lbs)"
-        type="number"
-        variant="outlined"
-        dense
-        hide-details
-      />
+<v-text-field
+  v-model="exercise.actualWeight[setIndex]"
+  label="Actual weight (lbs)"
+  type="number"
+  variant="outlined"
+  dense
+  hide-details
+  :disabled="!timerStarted"
+/>
     </v-card>
     </div>
     </template>
@@ -236,13 +240,15 @@
         <v-divider class="my-3"></v-divider>
 
 
-        <v-btn color="primary" block @click="completeWorkout" :to="{ name: 'athlete-homepage' }">
-          Complete Workout
-        </v-btn>
-        <v-divider class="my-3"></v-divider>
-        <v-btn color="error" block @click="showEndModal = true">
-          Cancel Workout
-        </v-btn>
+        <v-btn 
+  color="primary" 
+  block 
+  @click="completeWorkout" 
+  :to="{ name: 'athlete-homepage' }"
+  :disabled="currentExercises.length === 0 || !currentExercises.every(ex => ex.completed)"
+>
+  Complete Workout
+</v-btn>
       </v-card>
     </template>
 
