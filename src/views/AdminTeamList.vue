@@ -31,14 +31,8 @@ const getAthletesOnTeam = async () => {
   }
   selectedTeam.value.athletes = []
   response.data.forEach((athlete) =>{
-    if (athlete.role === "coach") {
-      selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
-    }
-    else {
-      athleteArray.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
-    }
-    //puts coaches on top of list
-    selectedTeam.value.athletes.push(...athleteArray);
+    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
+    selectedTeam.value.athletes.sort(athleteSort);
   })
 };
 
@@ -81,6 +75,13 @@ const loadTeams = async () => {
 
 function teamSort(a, b){
   if (a.name.toUpperCase() < b.name.toUpperCase()) return -1;
+  else return 1;
+}
+
+function athleteSort(a, b){
+  if (a.role ==="coach") return -1;
+  if (b.role ==="coach") return 1
+  if (a.firstName < b.firstName) return -1;
   else return 1;
 }
 
