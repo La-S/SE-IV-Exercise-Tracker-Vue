@@ -3,7 +3,7 @@
     <v-card 
   v-if="activeWorkout && timerStarted"
   class="pa-3 mb-4"
-  color="primary"
+  color="accent"
   
   style="position: sticky; top: 80px; z-index: 10;"
 >
