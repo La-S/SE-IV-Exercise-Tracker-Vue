@@ -379,15 +379,6 @@ const viewAthleteInfo = (athlete) => {
                         variant="text"
                         @click="viewAthleteInfo(athlete)"
                       >
-                        View Exercises
-                      </v-btn>
-                      <br/>
-                      <br/>
-                      <v-btn
-                        color="primary"
-                        variant="text"
-                        @click="email(athlete.email)"
-                      >
                         Contact User
                       </v-btn>
                       <br/>
