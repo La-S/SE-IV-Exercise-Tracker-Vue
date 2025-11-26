@@ -1,27 +1,36 @@
 <template>
   <v-container class="pa-4 text-center">
-     <v-card 
-      v-if="activeWorkout && timerStarted"
-      class="pa-3 mb-4"
-      color="primary"
-      variant="tonal"
-      style="position: sticky; top: 0; z-index: 10;"
+    <v-card 
+  v-if="activeWorkout && timerStarted"
+  class="pa-3 mb-4"
+  color="primary"
+  
+  style="position: sticky; top: 80px; z-index: 10;"
+>
+  <div class="d-flex justify-space-between align-center">
+    <div>
+      <div class="text-caption">Timer</div>
+      <div class="text-h5 font-weight-bold">{{ formatTime(workoutTime) }}</div>
+    </div>
+    <v-btn
+      @click="toggleTimer"
+      :color="timerPaused ? 'warning' : 'primary'"
+      size="small"
+      variant="outlined"
     >
-      <div class="d-flex justify-space-between align-center">
-        <div>
-          <div class="text-caption">Timer</div>
-          <div class="text-h5 font-weight-bold">{{ formatTime(workoutTime) }}</div>
-        </div>
-        <v-btn
-          @click="toggleTimer"
-          :color="timerPaused ? 'warning' : 'primary'"
-          size="small"
-          variant="outlined"
-        >
-          {{ timerPaused ? 'Resume' : 'Pause' }}
-        </v-btn>
-      </div>
-    </v-card>
+      {{ timerPaused ? 'Resume' : 'Pause' }}
+    </v-btn>
+  </div>
+  
+  <v-divider v-if="restActive" class="my-2"></v-divider>
+  
+  <div v-if="restActive" class="text-center">
+    <v-icon color="primary">mdi-timer-sand</v-icon>
+    <span class="ml-2 text-body-1 font-weight-medium">
+      Rest Time: {{ formatTime(restTime) }}
+    </span>
+  </div>
+</v-card>
 
     <template v-if="!activeWorkout && !allWorkoutsCompleted">
       <v-row justify="center" align="center" class="mt-6">
@@ -234,15 +243,7 @@
           No exercises assigned to this workout yet.
         </v-alert>
 
-        <div v-if="restActive" class="my-4">
-          <v-icon color="primary">mdi-timer-sand</v-icon>
-          <span class="ml-2 text-body-1">
-            Rest Time: {{ formatTime(restTime) }}
-          </span>
-        </div>
-
         <v-divider class="my-3"></v-divider>
-
 
         <v-btn 
   color="primary" 
@@ -456,18 +457,11 @@ function startWorkoutTimer() {
 }
 
 function toggleTimer() {
-  if (timerPaused.value && restActive.value) {
-    clearInterval(restInterval);
-    restActive.value = false;
-  }
   timerPaused.value = !timerPaused.value;
 }
 
 function handleSetCompletion(exercise) {
   if (exercise.completed) {
-    if (workoutInterval && !timerPaused.value) {
-      timerPaused.value = true;
-    }
     startRestTimer(exercise.restTimer);
   }
 
@@ -495,11 +489,14 @@ function startRestTimer(duration = 60) {
   restTime.value = duration;
 
   restInterval = setInterval(() => {
-    if (restTime.value > 0) restTime.value--;
-    else {
+    if (timerPaused.value) {
+      return;
+    }
+    if (restTime.value > 0) {
+      restTime.value--;
+    } else {
       clearInterval(restInterval);
       restActive.value = false;
-      timerPaused.value = false;
     }
   }, 1000);
 }
