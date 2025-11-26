@@ -23,6 +23,7 @@ const selectedTeamKey = reactive({ type: "team", id: teams.value[0]?.id ?? null 
 
 const getAthletesOnTeam = async () => {
   if (!selectedTeam) return;
+  let athleteArray = [];
 
   const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
   if (response.status != 200){
@@ -30,7 +31,14 @@ const getAthletesOnTeam = async () => {
   }
   selectedTeam.value.athletes = []
   response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
+    if (athlete.role === "coach") {
+      selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
+    }
+    else {
+      athleteArray.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
+    }
+    //puts coaches on top of list
+    selectedTeam.value.athletes.push(...athleteArray);
   })
 };
 
@@ -345,7 +353,7 @@ const viewAthleteInfo = (athlete) => {
                   </v-btn>
                 </div>
                 <v-alert v-if="!selectedTeam.athletes?.length" variant="tonal" type="info">
-                  No athletes on the team. Use the Add Athlete button to get started.
+                  No users on the team. Use the Add Athlete button to get started.
                 </v-alert>
 
                 <v-expansion-panels v-else>
@@ -355,7 +363,7 @@ const viewAthleteInfo = (athlete) => {
                   >
                     <v-expansion-panel-title>
                       <div class="d-flex flex-column">
-                        <span class="font-weight-medium">{{ athlete.firstName }} {{ athlete.lastName }}</span>
+                        <span class="font-weight-medium">{{ athlete.role === "coach" ? 'Coach ' + athlete.firstName : athlete.firstName }} {{ athlete.lastName }}</span>
                       </div>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
