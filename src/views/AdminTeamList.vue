@@ -73,10 +73,16 @@ const loadTeams = async () => {
   const data = response.data;
   if (Array.isArray(data)) {
     teams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
+    teams.value.sort(teamSort);
   } else {
     teams.value = [];
   }
 };
+
+function teamSort(a, b){
+  if (a.name.toUpperCase() < b.name.toUpperCase()) return -1;
+  else return 1;
+}
 
 onMounted(() => {
   loadTeams();
