@@ -356,11 +356,11 @@ const viewAthleteInfo = (athlete) => {
                     prepend-icon="mdi-plus"
                     @click="addAthletesToTeamDialog = true"
                   >
-                    Add Athlete
+                    Add User
                   </v-btn>
                 </div>
                 <v-alert v-if="!selectedTeam.athletes?.length" variant="tonal" type="info">
-                  No users on the team. Use the Add Athlete button to get started.
+                  No users on the team. Use the Add User button to get started.
                 </v-alert>
 
                 <v-expansion-panels v-else>
