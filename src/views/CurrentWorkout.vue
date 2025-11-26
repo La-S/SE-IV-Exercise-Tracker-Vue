@@ -138,36 +138,40 @@
       </v-chip>
 
       <template v-if="exercise.type === 'cardio'">
-        <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
-          <div class="font-weight-medium mb-1">Cardio Goal</div>
-          <div class="text-body-2 mb-2">
-            {{ exercise.goalMiles[0] }} miles  
-            <span v-if="exercise.goalPace[0]">
-              @ {{ exercise.goalPace[0] }} sec
-            </span>
-          </div>
+  <div
+    v-for="(goalMile, setIndex) in exercise.goalMiles"
+    :key="setIndex"
+  >
+    <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
+      <div class="font-weight-medium mb-1">Cardio Set {{ setIndex + 1 }}</div>
+      <div class="text-body-2 mb-2">
+        {{ exercise.goalMiles[setIndex] }} miles  
+        <span v-if="exercise.goalPace[setIndex]">
+          @ {{ exercise.goalPace[setIndex] }} mins
+        </span>
+      </div>
 
-          <v-text-field
-  v-model="exercise.actualMiles[0]"
-  label="Actual distance (miles)"
-  type="number"
-  dense
-  hide-details
-  class="mb-2"
-  :disabled="!timerStarted"
-/>
+      <v-text-field
+        v-model="exercise.actualMiles[setIndex]"
+        label="Actual distance (miles)"
+        type="number"
+        dense
+        hide-details
+        class="mb-2"
+        :disabled="!timerStarted"
+      />
 
-<v-text-field
-  v-model="exercise.actualTime[0]"
-  label="Actual total time (sec)"
-  type="number"
-  dense
-  hide-details
-  :disabled="!timerStarted"
-/>
-        </v-card>
-      </template>
-
+      <v-text-field
+        v-model="exercise.actualTime[setIndex]"
+        label="Actual total time (mins)"
+        type="number"
+        dense
+        hide-details
+        :disabled="!timerStarted"
+      />
+    </v-card>
+  </div>
+</template>
       <template v-else>
   <div
     v-for="(set, setIndex) in exercise.sets"
