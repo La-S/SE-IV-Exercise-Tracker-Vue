@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import apiClient from "../services/services.js";
+import SetTable from "../components/SetTable.vue";
 import Utils from "../config/utils.js";
 
 const DEFAULT_REST_TIMER = 90;
@@ -1467,34 +1468,11 @@ watch(editExerciseDialog, (isOpen) => {
                             No sets defined for this exercise.
                           </v-alert>
 
-                          <v-table
+                          <set-table
                             v-else
-                            density="compact"
-                            class="text-body-2"
-                          >
-                            <thead>
-                              <tr>
-                                <th class="text-left">#</th>
-                                <th class="text-left">Goal</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr v-for="(set, idx) in exercise.sets" :key="set.id ?? idx">
-                                <td>{{ idx + 1 }}</td>
-                                <td>
-                                  <span v-if="exercise.type.toLowerCase() === 'strength'">
-                                    {{ set.goalWeight ?? "-" }} lbs × {{ set.goalReps ?? "-" }} reps
-                                  </span>
-                                  <span v-else-if="exercise.type.toLowerCase() === 'cardio'">
-                                    {{ set.goalDist ?? "-" }} {{ set.distUnits || "" }}
-                                  </span>
-                                  <span v-else>
-                                    {{ set.goalReps ?? set.goalTime ?? "-" }}
-                                  </span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </v-table>
+                            :sets="exercise.sets"
+                            :type="exercise.type"
+                          />
                         </v-col>
                       </v-row>
                     </v-expansion-panel-text>
