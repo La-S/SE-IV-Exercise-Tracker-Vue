@@ -533,13 +533,13 @@ async function submitWorkout() {
       const sets = Array.isArray(setsResponse.data) ? setsResponse.data : [];
 
       for (let i = 0; i < sets.length; i++) {
-        await apiClient.put(`set/${sets[i].id}`, {
-          actualReps: exercise.actualReps[i],
-          actualWeight: exercise.actualWeight[i],
-          actualTime: exercise.actualTime[i],
-          actualDist: exercise.actualMiles[i],
-        });
-      }
+  await apiClient.put(`set/${sets[i].id}`, {
+    actualReps: exercise.actualReps[i],
+    actualWeight: exercise.actualWeight[i],
+    actualTime: exercise.type === 'cardio' ? exercise.actualTime[i] * 60 : exercise.actualTime[i],
+    actualDist: exercise.actualMiles[i],
+  });
+}
     }
 
     
