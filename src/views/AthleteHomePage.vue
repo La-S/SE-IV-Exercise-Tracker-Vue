@@ -61,7 +61,7 @@
       <v-col cols="12">
         <v-card class="pa-3 elevation-2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-bold">
-            Mile Time From Last Workout
+            Average Mile Time
           </v-card-title>
           <v-card-text class="pt-2">
             <div class="d-flex flex-column align-center text-center">
@@ -91,23 +91,24 @@
       <v-col cols="12">
         <v-card class="pa-3 elevation-2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-bold">
-            Lifting History From Last Workout
+            Lifting History
           </v-card-title>
-          <v-card-text>
-            <v-divider class="mb-2"></v-divider>
-            <div
-              v-if="Object.keys(personalRecords).length > 0"
-              v-for="(weight, exercise) in personalRecords"
-              :key="exercise"
-              class="d-flex justify-space-between text-body-2 mb-1"
-            >
-              <span>{{ exercise }}</span>
-              <span class="font-weight-medium">{{ weight }} lbs</span>
-            </div>
-            <div v-else class="text-caption text-center grey--text">
-              No lifting data available
-            </div>
-          </v-card-text>
+          <v-card-text class="pt-2">
+  <div
+    v-if="Object.keys(personalRecords).length > 0"
+    v-for="(weight, exercise) in personalRecords"
+    :key="exercise"
+    class="d-flex justify-space-between text-body-2 mb-1"
+  >
+    <span>{{ exercise }}</span>
+    <span class="font-weight-medium">{{ weight }} lbs</span>
+  </div>
+  <div class="d-flex flex-column align-center text-center mt-2">
+    <div class="text-caption grey--text">
+      {{ liftingSubtext }}
+    </div>
+  </div>
+</v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -137,7 +138,14 @@ const mileTimeSubtext = computed(() => {
   if (mileTimeHistory.value.length === 0) {
     return "";
   }
-  return "Based on time from last cardio workout";
+  return "Based on times from last cardio workout";
+});
+
+const liftingSubtext = computed(() => {
+  if (Object.keys(personalRecords.value).length === 0) {
+    return "No lifting data available";
+  }
+  return "Based on weight lifted in last workout";
 });
 
 const resolveUserContext = () => {
@@ -199,9 +207,10 @@ const fetchCardioStats = async (workouts) => {
       .filter((w) => w.date != null)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    const cardioTimes = [];
+    const cardioTimesFromLastWorkout = [];
+    let foundCardio = false;
 
-    for (const workout of completedWorkouts.slice(0, 10)) {
+    for (const workout of completedWorkouts) {
       try {
         const exercisesResponse = await apiClient.get(`workout/${workout.id}/exercises`);
         const exercises = Array.isArray(exercisesResponse.data) ? exercisesResponse.data : [];
@@ -214,20 +223,22 @@ const fetchCardioStats = async (workouts) => {
             for (const set of sets) {
               if (set.actual_time && set.actual_dist && set.actual_dist > 0) {
                 const pacePerMile = set.actual_time / set.actual_dist;
-                cardioTimes.push(pacePerMile);
+                cardioTimesFromLastWorkout.push(pacePerMile);
+                foundCardio = true;
               }
             }
           }
         }
+        if (foundCardio) break;
       } catch (err) {
         console.error(`Error fetching exercises for workout ${workout.id}:`, err);
       }
     }
 
-    if (cardioTimes.length > 0) {
-      mileTimeHistory.value = cardioTimes;
-      const latestTime = cardioTimes[0];
-      averageMileTime.value = formatTimeMinutes(latestTime);
+    if (cardioTimesFromLastWorkout.length > 0) {
+      mileTimeHistory.value = cardioTimesFromLastWorkout;
+      const averagePace = cardioTimesFromLastWorkout.reduce((sum, pace) => sum + pace, 0) / cardioTimesFromLastWorkout.length;
+      averageMileTime.value = formatTimeMinutes(averagePace);
     }
   } catch (err) {
     console.error("Error fetching cardio stats:", err);
