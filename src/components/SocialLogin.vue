@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import dummbellsImage from "../assets/dumbbells.jpg"
 import AuthServices from "../services/authServices";
 import Utils from "../config/utils.js";
 import { useRouter } from "vue-router";
@@ -9,6 +10,7 @@ const fName = ref("");
 const lName = ref("");
 const role = ref("");
 const user = ref({});
+const logoURL = ref("");
 
 const loginWithGoogle = () => {
   window.handleCredentialResponse = handleCredentialResponse;
@@ -48,6 +50,9 @@ const handleCredentialResponse = async (response) => {
 };
 
 onMounted(async () => {
+
+  logoURL.value = dummbellsImage;
+
   let user = Utils.getStore("user");
   console.log(user);
   if (user) {
@@ -80,9 +85,39 @@ function routeForRole(role){
 </script>
 
 <template>
-  <div class="signup-buttons">
-    <v-row justify="center">
-      <div display="flex" id="parent_id"></div>
-    </v-row>
-  </div>
+  <v-img :src="logoURL" align="center">
+    <v-column align="center">
+      <v-card min-height="300" min-width="500" max-width="900px">
+        <v-card-text class="top-text">This is the OC Exercise Tracker!</v-card-text>
+        <v-card-text >This app allows you to assign, complete, and view workouts!</v-card-text>
+        <v-card-text >Sign in with google below to get started!</v-card-text>
+        <div class="signup-buttons">
+          <v-row justify="center">
+            <div display="flex" id="parent_id"></div>
+          </v-row>
+        </div>
+      </v-card>
+    </v-column>
+  </v-img>
 </template>
+
+<style scoped>
+
+.top-text{
+  margin-top:20px
+}
+.signup-buttons{
+  padding-top:40px;
+}
+
+.v-card{
+  opacity:100%;
+  margin-top:100px;
+}
+.v-card-text{
+  justify-content: center;
+  font-size:large;
+  font-weight: bold;
+  text-align: center;
+}
+</style>
