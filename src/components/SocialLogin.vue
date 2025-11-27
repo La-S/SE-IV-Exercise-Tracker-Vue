@@ -88,7 +88,7 @@ function routeForRole(role){
   <v-img :src="logoURL" align="center">
     <v-column align="center">
       <v-card min-height="300" min-width="500" max-width="900px">
-        <v-card-text class="top-text">This is the OC Exercise Tracker!</v-card-text>
+        <v-card-text class="top-text">Welcome to the OC Exercise Tracker!</v-card-text>
         <v-card-text >This app allows you to assign, complete, and view workouts!</v-card-text>
         <v-card-text >Sign in with google below to get started!</v-card-text>
         <div class="signup-buttons">
