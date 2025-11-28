@@ -85,7 +85,7 @@ function routeForRole(role){
 </script>
 
 <template>
-  <v-img :src="logoURL" align="center">
+  <v-img :src="logoURL" align="center" cover="true">
     <v-col align="center">
       <v-card min-height="300" min-width="500" max-width="900px">
         <div class="text-h4">Welcome to the OC Exercise Tracker!</div>
@@ -103,7 +103,12 @@ function routeForRole(role){
 
 <style scoped>
 
-
+.v-img{
+  min-height:90vh;
+  max-height: 90vh;
+  overflow:hidden;
+  margin-top:40px;
+}
 .text-h4{
   margin-top:20px;
 }
@@ -118,10 +123,5 @@ function routeForRole(role){
   opacity:100%;
   margin-top:100px;
 }
-.v-card-text{
-  justify-content: center;
-  font-size:large;
-  font-weight: bold;
-  text-align: center;
-}
 </style>
+
