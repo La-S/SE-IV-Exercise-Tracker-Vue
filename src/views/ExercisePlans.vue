@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import apiClient from "../services/services.js";
-import SetTable from "../components/SetTable.vue";
+import ExerciseItem from "../components/ExerciseItem.vue";
 import Utils from "../config/utils.js";
 
 const DEFAULT_REST_TIMER = 90;
@@ -1403,80 +1403,15 @@ watch(editExerciseDialog, (isOpen) => {
                 </v-alert>
 
                 <v-expansion-panels v-else>
-                  <v-expansion-panel
+                  <exercise-item
                     v-for="exercise in selectedPlan.exercises"
                     :key="exercise.assignmentId || exercise.templateId"
-                  >
-                    <v-expansion-panel-title>
-                      <div class="d-flex flex-column">
-                        <span class="font-weight-medium">{{ exercise.name }}</span>
-                        <span class="text-body-2 text-medium-emphasis">
-                          {{ exercise.type }} • {{ exercise.muscleGroup || "General" }}
-                        </span>
-                      </div>
-                    </v-expansion-panel-title>
-                    <v-expansion-panel-text>
-                      <v-row>
-                        <v-col cols="12" md="8">
-                          <p class="text-body-2 mb-2">{{ exercise.notes || "No notes" }}</p>
-                        </v-col>
-                        <v-col cols="12" md="4" class="d-flex flex-column align-end text-right">
-                          <v-chip color="secondary" variant="elevated" class="mb-2">
-                            Rest: {{ exercise.restTimer }}s
-                          </v-chip>
-                          <v-btn
-                            color="primary"
-                            variant="text"
-                            class="mb-2"
-                            :disabled="exerciseMutationPending"
-                            @click="openPlanExerciseEditor(selectedPlan.id, exercise)"
-                          >
-                            Edit
-                          </v-btn>
-                          <v-btn
-                            color="error"
-                            variant="text"
-                            :disabled="exerciseMutationPending"
-                            @click="removeExerciseFromPlan(exercise.assignmentId)"
-                          >
-                            Remove
-                          </v-btn>
-                        </v-col>
-                      </v-row>
-                      <v-row class="mt-4">
-                        <v-col cols="12">
-                          <div class="d-flex justify-space-between align-center mb-2">
-                            <h4 class="text-subtitle-2 font-weight-medium mb-0">Sets</h4>
-                            <v-btn
-                              variant="text"
-                              size="small"
-                              color="primary"
-                              :disabled="exerciseMutationPending"
-                              @click.stop="openPlanExerciseEditor(selectedPlan.id, exercise)"
-                            >
-                              Edit Sets
-                            </v-btn>
-                          </div>
-
-                          <v-alert
-                            v-if="!exercise.sets || !exercise.sets.length"
-                            type="info"
-                            variant="tonal"
-                            density="comfortable"
-                            class="mb-2"
-                          >
-                            No sets defined for this exercise.
-                          </v-alert>
-
-                          <set-table
-                            v-else
-                            :sets="exercise.sets"
-                            :type="exercise.type"
-                          />
-                        </v-col>
-                      </v-row>
-                    </v-expansion-panel-text>
-                  </v-expansion-panel>
+                    :exercise="exercise"
+                    :mutation-pending="exerciseMutationPending"
+                    @edit="openPlanExerciseEditor(selectedPlan.id, exercise)"
+                    @edit-sets="openPlanExerciseEditor(selectedPlan.id, exercise)"
+                    @remove="removeExerciseFromPlan(exercise.assignmentId)"
+                  />
                 </v-expansion-panels>
               </div>
             </v-card-text>
