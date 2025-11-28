@@ -88,9 +88,9 @@ function routeForRole(role){
   <v-img :src="logoURL" align="center">
     <v-column align="center">
       <v-card min-height="300" min-width="500" max-width="900px">
-        <v-card-text class="top-text">Welcome to the OC Exercise Tracker!</v-card-text>
-        <v-card-text >This app allows you to assign, complete, and view workouts!</v-card-text>
-        <v-card-text >Sign in with google below to get started!</v-card-text>
+        <div class="text-h4">Welcome to the OC Exercise Tracker!</div>
+        <div class="text-h6">The new way to manage workouts on campus</div>
+          <div class="text-h6">Sign in with Google below to get started!</div>
         <div class="signup-buttons">
           <v-row justify="center">
             <div display="flex" id="parent_id"></div>
@@ -103,8 +103,11 @@ function routeForRole(role){
 
 <style scoped>
 
-.top-text{
-  margin-top:20px
+.text-h4{
+  margin-top:20px;
+}
+.text-h6{
+  margin-top:20px;
 }
 .signup-buttons{
   padding-top:40px;
