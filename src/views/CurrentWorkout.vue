@@ -168,6 +168,7 @@
         hide-details
         class="mb-2"
         :disabled="!timerStarted"
+        autocomplete="off"
       />
 
       <v-text-field
@@ -177,6 +178,7 @@
         dense
         hide-details
         :disabled="!timerStarted"
+        autocomplete="off"
       />
     </v-card>
   </div>
@@ -211,6 +213,7 @@
   hide-details
   class="mb-2"
   :disabled="!timerStarted"
+  autocomplete="off"
 />
 
 <v-text-field
@@ -221,6 +224,7 @@
   dense
   hide-details
   :disabled="!timerStarted"
+  autocomplete="off"
 />
     </v-card>
     </div>
@@ -410,10 +414,10 @@ async function fetchExercisesForWorkout(workoutId) {
           weight: sets.map(s => s.goal_weight || null),
           goalMiles: sets.map(s => s.goal_dist || null),
           goalPace: sets.map(s => s.goal_time || null),
-          actualMiles: sets.map(s => s.actual_dist || null),
-          actualWeight: sets.map(s => s.actual_weight || null),
-          actualTime: sets.map(s => s.actual_time || 0), 
-          actualReps: sets.map(s => s.actual_reps || null),
+          actualMiles: sets.map(s => 0),
+          actualWeight: sets.map(s => 0),
+          actualTime: sets.map(s => 0), 
+          actualReps: sets.map(s => 0),
           mileTimes: "",
         };
       })
