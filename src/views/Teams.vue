@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import apiClient from "../services/services";
+import { useRouter } from "vue-router";
 
 const yourTeams = ref([]);
 
@@ -13,6 +14,10 @@ const availableAthletes = ref([]);
 const teamCreationError = ref(null);
 const teamUpdateError = ref(null);
 const addAthletesError = ref(null);
+
+const router = useRouter();
+
+const athleteSearch = ref("");
 
 const teamSections = computed(() => [
   { label: "Your Teams", type: "team", teams: yourTeams.value },
@@ -30,7 +35,7 @@ const getAthletesOnTeam = async () => {
   }
   selectedTeam.value.athletes = []
   response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.lastName, email: athlete.email})
+    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
   })
 };
 
@@ -41,7 +46,7 @@ const getAllAthletes = async () => {
   }
   availableAthletes.value = []
   response.data.forEach((athlete) =>{
-    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.lastName, email: athlete.email})
+    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
   })
 };
 
@@ -249,6 +254,32 @@ const removeAthleteFromTeam = async (athleteId) => { // todo maybe add warning i
 const email = (email) => {
   window.location.href = `mailto:${email}`
 }
+
+const viewAthleteInfo = (athlete) => {
+   router.push({ path: `athlete-info/${athlete.id}`,  });
+}
+
+const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) => {return a.lastName > b.lastName}));
+
+const searchableAthletes = computed(() => {
+  const term = athleteSearch.value.trim().toLowerCase();
+
+  return availableAthletes.value.filter((athlete) => {
+    if (selectedTeam.value.athletes.find((a) => {return a == athlete})) {
+      return false;
+    }
+    
+    if (!term) {
+       return true;
+    }
+    let athleteSearchable = athlete.firstName + " " + athlete.lastName + " " + athlete.email
+    athleteSearchable = athleteSearchable.toLowerCase();
+    if (athleteSearchable.indexOf(term) != -1) {
+      return true;
+    }
+  }).sort((a, b) => {return a.lastName > b.lastName});
+});
+
 </script>
 
 <template>
@@ -276,9 +307,9 @@ const email = (email) => {
             <v-list density="compact" nav>
               <template v-for="section in teamSections" :key="section.type">
                 <span v-if="section?.type !== 'others' || section.teams.length > 0">
-                  <v-subheader class="text-uppercase font-weight-medium">
+                  <div class="text-uppercase font-weight-medium">
                     {{ section.label }}
-                  </v-subheader>
+                  </div>
                   <v-alert v-if="section.teams.length === 0" variant="tonal" type="info">
                     You don't have any teams. Use the + button to get started.
                   </v-alert>
@@ -358,7 +389,7 @@ const email = (email) => {
 
                 <v-expansion-panels v-else>
                   <v-expansion-panel
-                    v-for="athlete in selectedTeam.athletes ?? []"
+                    v-for="athlete in sortedAthletes ?? []"
                     :key="athlete.id"
                   >
                     <v-expansion-panel-title>
@@ -367,6 +398,15 @@ const email = (email) => {
                       </div>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
+                      <v-btn
+                        color="primary"
+                        variant="text"
+                        @click="viewAthleteInfo(athlete)"
+                      >
+                        View Exercises
+                      </v-btn>
+                      <br/>
+                      <br/>
                       <v-btn
                         color="primary"
                         variant="text"
@@ -412,14 +452,22 @@ const email = (email) => {
           <span>Select Athletes to add to '{{ selectedTeam.name }}'</span>
         </v-card-title>
         <v-card-text>
+          <v-row class="mb-3" dense>
+            <v-text-field
+                v-model="athleteSearch"
+                label="Search athletes"
+                prepend-inner-icon="mdi-magnify"
+                density="comfortable"
+              />
+          </v-row>
           <v-list
-            v-if="selectedTeam.athletes.length < availableAthletes.length"
+            v-if="searchableAthletes.length > 0"
             density="comfortable"
             lines="two"
             style="max-height: 360px; overflow-y: auto;"
           >
             <v-item-group v-model="selectedAthleteIds" multiple>
-              <template v-for="athlete in availableAthletes" :key="athlete.id">
+              <template v-for="athlete in searchableAthletes" :key="athlete.id">
                 <v-item :value="athlete.id" v-if="!isAthleteOnTeam(athlete.id)" v-slot="{ isSelected, toggle }">
                   <v-list-item @click="toggle" class="rounded-lg">
                     <template #prepend>
@@ -437,7 +485,7 @@ const email = (email) => {
             </v-item-group>
           </v-list>
           <v-alert v-else type="info" variant="tonal">
-            No more athletes are available. Tell your athlete to create an account.
+            No more athletes are available. Tell your athlete to create an account, or change your search term.
           </v-alert>
           <v-alert v-if="addAthletesError" type="error" variant="tonal">
            {{addAthletesError}}
