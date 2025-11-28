@@ -86,29 +86,31 @@ function routeForRole(role){
 
 <template>
   <v-img :src="logoURL" align="center" cover="true">
-    <v-col align="center">
-      <v-card min-height="300" min-width="500" max-width="900px">
-        <div class="text-h4">Welcome to the OC Exercise Tracker!</div>
-        <div class="text-h6">The new way to manage workouts on campus</div>
-          <div class="text-h6">Sign in with Google below to get started!</div>
-        <div class="signup-buttons">
-          <v-row justify="center">
-            <div display="flex" id="parent_id"></div>
-          </v-row>
-        </div>
-      </v-card>
-    </v-col>
-  </v-img>
+      <v-col align="center">
+        <v-card min-height="300" min-width="500" max-width="900px">
+          <div class="text-h4">Welcome to the OC Exercise Tracker!</div>
+          <div class="text-h6">The new way to manage workouts on campus</div>
+            <div class="text-h6">Sign in with Google below to get started!</div>
+          <div class="signup-buttons">
+            <v-row justify="center">
+              <div display="flex" id="parent_id"></div>
+            </v-row>
+          </div>
+        </v-card>
+      </v-col>
+    </v-img>
 </template>
 
 <style scoped>
 
 .v-img{
-  min-height:90vh;
-  max-height: 90vh;
-  overflow:hidden;
-  margin-top:40px;
+  height:95vh;
 }
+.v-container{
+  margin:0;
+  padding:0;
+}
+
 .text-h4{
   margin-top:20px;
 }
