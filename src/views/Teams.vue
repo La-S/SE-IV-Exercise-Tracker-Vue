@@ -403,7 +403,7 @@ const searchableAthletes = computed(() => {
                         variant="text"
                         @click="viewAthleteInfo(athlete)"
                       >
-                        View Exercises
+                        View Workouts
                       </v-btn>
                       <br/>
                       <br/>
