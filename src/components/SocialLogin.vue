@@ -80,9 +80,11 @@ function routeForRole(role){
 </script>
 
 <template>
-  <div class="signup-buttons">
-    <v-row justify="center">
-      <div display="flex" id="parent_id"></div>
-    </v-row>
-  </div>
+  <v-container>
+    <div class="signup-buttons">
+      <v-row justify="center">
+        <div display="flex" id="parent_id"></div>
+      </v-row>
+    </div>
+  </v-container>
 </template>
