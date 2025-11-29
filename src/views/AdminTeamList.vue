@@ -71,12 +71,15 @@ const loadTeams = async () => {
   const data = response.data;
   if (Array.isArray(data)) {
     teams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
-    teams.value.sort(teamSort);
+    sortTeams();
   } else {
     teams.value = [];
   }
 };
 
+function sortTeams(){
+  teams.value.sort(teamSort);
+}
 function teamSort(a, b){
   if (a.name.toUpperCase() < b.name.toUpperCase()) return -1;
   else return 1;
@@ -156,6 +159,7 @@ const createTeam = async function() {
     console.error("Failed to create exercise team", error);
     teamCreationError.value = error?.response?.data?.message || "Unable to create the Team. Please check the name or try again later.";
   }
+  sortTeams();
 };
 
 const updateTeam = async function() {
@@ -176,6 +180,7 @@ const updateTeam = async function() {
     console.error("Failed to update team", error);
     teamUpdateError.value = error?.response?.data?.message || "Unable to save the exercise. Please check the details and try again.";
   }
+  sortTeams();
 };
 
 function isAthleteOnTeam(athleteId) {
