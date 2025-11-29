@@ -26,16 +26,18 @@ const selectedTeamKey = reactive({ type: "team", id: teams.value[0]?.id ?? null 
 const getAthletesOnTeam = async () => {
   if (!selectedTeam) return;
   let athleteArray = [];
-
-  const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
-  if (response.status != 200){
-    throw Error("Status not 200.")
+  if (selectedTeam.value){
+    const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
+    
+    if (response.status != 200){
+      throw Error("Status not 200.")
+    }
+    selectedTeam.value.athletes = []
+    response.data.forEach((athlete) =>{
+      selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
+      selectedTeam.value.athletes.sort(athleteSort);
+    })
   }
-  selectedTeam.value.athletes = []
-  response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
-    selectedTeam.value.athletes.sort(athleteSort);
-  })
 };
 
 const getAllAthletes = async () => {
