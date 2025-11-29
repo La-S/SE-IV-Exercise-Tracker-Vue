@@ -399,7 +399,7 @@ const searchableAthletes = computed(() => {
                       <v-btn
                         color="primary"
                         variant="text"
-                        @click="viewAthleteInfo(athlete)"
+                        @click="email(athlete.email)"
                       >
                         Contact User
                       </v-btn>
