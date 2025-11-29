@@ -87,7 +87,7 @@ function routeForRole(role){
 <template>
   <v-img :src="logoURL" align="center" cover="true">
       <v-col align="center">
-        <v-card min-height="300" min-width="500" max-width="900px">
+        <v-card>
           <div class="text-h4">Welcome to the OC Exercise Tracker!</div>
           <div class="text-h6">The new way to manage workouts on campus</div>
             <div class="text-h6">Sign in with Google below to get started!</div>
@@ -113,6 +113,18 @@ function routeForRole(role){
   padding:0;
 }
 
+@media (max-width: 1199px) {
+  .v-card{
+    min-height:50vh;
+    min-width:85vw;
+  }
+}
+@media (min-width: 1200px){
+  .v-card{
+    min-height: 30vh;
+    max-width: 50vw;
+  }
+}
 .text-h4{
   margin-top:20px;
 }
