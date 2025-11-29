@@ -13,12 +13,10 @@ import LoginMenu from "../components/LoginMenu.vue"
 
 <style scoped>
 .login-container{
-  min-height:100vh;
+  margin-top:56px; /* 56 is toolbar height*/
   max-width:90vw;
   margin-bottom:0;
-  padding-bottom:0;
-  padding-top:39px; /* this is the best way I could find to make it pad properly*/
+  padding:0;
   overflow:hidden;
-  overflow-y: hidden;
 }
 </style>

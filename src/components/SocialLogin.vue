@@ -104,7 +104,9 @@ function routeForRole(role){
 <style scoped>
 
 .v-img{
-  height:95vh;
+  height:calc(100vh - 56px); /* 56 is toolbar height*/
+  padding-bottom:0px;
+  margin-bottom:0px;
 }
 .v-container{
   margin:0;
