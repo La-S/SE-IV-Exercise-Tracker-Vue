@@ -80,7 +80,7 @@
               padding="8"
             ></v-sparkline>
             <div v-else class="text-caption text-center grey--text">
-              No cardio data available
+              No cardio data available for the week
             </div>
           </v-card-text>
         </v-card>
@@ -143,7 +143,7 @@ const mileTimeSubtext = computed(() => {
 
 const liftingSubtext = computed(() => {
   if (Object.keys(personalRecords.value).length === 0) {
-    return "No lifting data available";
+    return "No lifting data available for the week";
   }
   return "Based on weight lifted in last workout";
 });

@@ -3,7 +3,7 @@
     <v-card 
   v-if="activeWorkout && timerStarted"
   class="pa-3 mb-4"
-  color="accent"
+  color="primary"
   
   style="position: sticky; top: 80px; z-index: 10;"
 >
@@ -14,7 +14,7 @@
     </div>
     <v-btn
       @click="toggleTimer"
-      :color="timerPaused ? 'warning' : 'primary'"
+      :color="timerPaused ? 'warning' : 'menubarText'"
       size="small"
       variant="outlined"
     >
