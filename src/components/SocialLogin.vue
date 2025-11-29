@@ -121,7 +121,7 @@ function routeForRole(role){
 }
 @media (min-width: 1200px){
   .v-card{
-    min-height: 30vh;
+    min-height: 300px;
     max-width: 50vw;
   }
 }
