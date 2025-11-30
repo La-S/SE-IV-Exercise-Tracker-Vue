@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import apiClient from "../services/services.js";
 import ExerciseItem from "../components/ExerciseItem.vue";
+import PlanListPanel from "../components/PlanListPanel.vue";
 import Utils from "../config/utils.js";
 
 const DEFAULT_REST_TIMER = 90;
@@ -1245,64 +1246,14 @@ watch(editExerciseDialog, (isOpen) => {
   <v-container fluid class="pa-6">
     <v-row align="stretch" justify="center" no-gutters>
       <v-col cols="12" lg="3" class="pr-lg-4">
-        <v-card class="h-100 d-flex flex-column">
-          <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
-            <span class="text-h6 text-sm-h5">Exercise Plans</span>
-            <v-btn
-              variant="tonal"
-              color="primary"
-              size="small"
-              prepend-icon="mdi-plus"
-              class="text-none"
-              @click="newPlanDialog = true"
-            >
-              Create Plan
-            </v-btn>
-          </v-card-title>
-
-          <v-divider />
-
-          <v-card-text class="flex-grow-1 overflow-y-auto pr-2">
-            <v-alert
-              v-if="planLoadError"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ planLoadError }}
-            </v-alert>
-            <div v-else-if="plansLoading" class="d-flex justify-center py-6">
-              <v-progress-circular indeterminate color="primary" />
-            </div>
-            <template v-else>
-              <v-list v-if="plans.length" density="compact" nav>
-                <v-list-item
-                  v-for="plan in plans"
-                  :key="plan.id"
-                  :active="selectedPlanId === plan.id"
-                  rounded
-                  class="mb-2"
-                  @click="selectedPlanId = plan.id"
-                >
-                  <v-list-item-title class="font-weight-medium">
-                    {{ plan.focusArea }}
-                  </v-list-item-title>
-                  <v-list-item-subtitle>
-                    {{ plan.notes || "No notes yet" }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-              <v-alert
-                v-else
-                type="info"
-                variant="tonal"
-                density="comfortable"
-              >
-                No workouts yet. Create one to get started.
-              </v-alert>
-            </template>
-          </v-card-text>
-        </v-card>
+        <plan-list-panel
+          :plans="plans"
+          :selected-plan-id="selectedPlanId"
+          :loading="plansLoading"
+          :error="planLoadError"
+          @create="newPlanDialog = true"
+          @select="selectedPlanId = $event"
+        />
       </v-col>
 
       <v-col cols="12" lg="6" class="px-lg-4 mt-6 mt-lg-0">
