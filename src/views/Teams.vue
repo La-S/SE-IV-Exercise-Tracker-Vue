@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import apiClient from "../services/services";
 import { useRouter } from "vue-router";
+import Utils from "../config/utils";
 
 const yourTeams = ref([]);
 
@@ -19,6 +20,8 @@ const router = useRouter();
 
 const athleteSearch = ref("");
 
+const user = Utils.getStore("user");
+
 const teamSections = computed(() => [
   { label: "Your Teams", type: "team", teams: yourTeams.value },
   { label: "Other Teams", type: "others", teams: otherTeams.value },
@@ -35,7 +38,7 @@ const getAthletesOnTeam = async () => {
   }
   selectedTeam.value.athletes = []
   response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
+    selectedTeam.value.athletes.push({id: athlete.id, role: athlete.role, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
   })
 };
 
@@ -46,7 +49,7 @@ const getAllAthletes = async () => {
   }
   availableAthletes.value = []
   response.data.forEach((athlete) =>{
-    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
+    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role})
   })
 };
 
@@ -67,7 +70,7 @@ const teamSelected = (type, teamId) => {
 }
 
 const loadTeams = async () => {
-  const response = await apiClient.get("team");
+  const response = await apiClient.get(`users/${user.id}/teams`);
   const data = response.data;
   if (Array.isArray(data)) {
     yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
@@ -139,6 +142,11 @@ const createTeam = async function() {
     resetNewTeam();
     newTeamDialog.value = false
     teamCreationError.value = null;
+
+    // make this user the coach.
+    teamSelected('team', response.data.id);
+    selectedAthleteIds.value = [user.id];
+    addAthletesToTeam();
   } catch (error) {
     console.error("Failed to create exercise team", error);
     teamCreationError.value = error?.response?.data?.message || "Unable to create the Team. Please check the name or try again later.";
@@ -186,11 +194,14 @@ const addAthletesToTeam = async () => {
       throw Error("status not 200.")
     }
     // add the athletes to the list.
-    selectedAthleteIds.value.forEach((exerciseId) => {
-      const athlete = availableAthletes.value.find((item) => item.id === exerciseId);
+    console.log(existingAthletes)
+    selectedAthleteIds.value.forEach((athleteId) => {
+      const athlete = availableAthletes.value.find((item) => item.id === athleteId);
+      console.log('ath', athlete)
       if (athlete && !existingAthletes.has(athlete.id)) {
-        teamAthletes.push(JSON.parse(JSON.stringify(athlete)));
+        selectedTeam.value.athletes.push(JSON.parse(JSON.stringify(athlete)));
         existingAthletes.add(athlete.id);
+        console.log("just pushed him and stuff...", selectedTeam.value.athletes)
       }
     });
 
@@ -280,6 +291,16 @@ const searchableAthletes = computed(() => {
   }).sort((a, b) => {return a.lastName > b.lastName});
 });
 
+function getRoleName(user) {
+  if (user.role == "user") {
+    return "";
+  } else if (user.role == "coach") {
+    return "👑 Coach"
+  } else if (user.role == "admin") {
+    return "👑 Admin"
+  }
+}
+
 </script>
 
 <template>
@@ -363,7 +384,7 @@ const searchableAthletes = computed(() => {
               <v-row>
                 <v-col cols="12" md="7">
                   <p class="text-body-2 mb-4">
-                    {{ `There are ${selectedTeam.athletes.length} athletes on this team.` }}
+                    {{ `There are ${selectedTeam.athletes.filter(a => a.role === "user").length} athletes on this team.` }}
                   </p>
                 </v-col>
               </v-row>
@@ -372,7 +393,7 @@ const searchableAthletes = computed(() => {
 
               <div>
                 <div class="d-flex align-center justify-space-between mb-4 flex-wrap">
-                  <h3 class="text-subtitle-1 font-weight-medium mb-0">Athletes on Team</h3>
+                  <h3 class="text-subtitle-1 font-weight-medium mb-0">People on Team</h3>
                   <v-btn
                     color="primary"
                     variant="tonal"
@@ -394,7 +415,7 @@ const searchableAthletes = computed(() => {
                   >
                     <v-expansion-panel-title>
                       <div class="d-flex flex-column">
-                        <span class="font-weight-medium">{{ athlete.firstName }} {{ athlete.lastName }}</span>
+                        <span class="font-weight-medium"> {{getRoleName(athlete)}} {{ athlete.firstName }} {{ athlete.lastName }} {{ athlete.id === user.id ? "(you)" : "" }}</span>
                       </div>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
@@ -449,13 +470,13 @@ const searchableAthletes = computed(() => {
     <v-dialog v-model="addAthletesToTeamDialog" max-width="560">
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between">
-          <span>Select Athletes to add to '{{ selectedTeam.name }}'</span>
+          <span>Select Users to add to '{{ selectedTeam.name }}'</span>
         </v-card-title>
         <v-card-text>
           <v-row class="mb-3" dense>
             <v-text-field
                 v-model="athleteSearch"
-                label="Search athletes"
+                label="Search users"
                 prepend-inner-icon="mdi-magnify"
                 density="comfortable"
               />
@@ -478,7 +499,7 @@ const searchableAthletes = computed(() => {
                         @click.stop="toggle"
                       />
                     </template>
-                    <v-list-item-title>{{ athlete.firstName }} {{ athlete.lastName }}</v-list-item-title>
+                    <v-list-item-title>{{ getRoleName(athlete) }} {{ athlete.firstName }} {{ athlete.lastName }}</v-list-item-title>
                   </v-list-item>
                 </v-item>
               </template>
