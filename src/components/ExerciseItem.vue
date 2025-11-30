@@ -11,6 +11,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  showActualResults: {
+    type: Boolean,
+    default: false
+  },
+  showMutationOptions: {
+    type: Boolean,
+    default: true
+  }
 });
 
 const emit = defineEmits(["edit", "edit-sets", "remove"]);
@@ -38,6 +46,7 @@ const normalizedType = computed(() => (props.exercise.type || "").toString().toL
             Rest: {{ exercise.restTimer }}s
           </v-chip>
           <v-btn
+            v-if = "showMutationOptions"
             color = "primary"
             variant = "text"
             class = "mb-2 wrap-btn"
@@ -47,6 +56,7 @@ const normalizedType = computed(() => (props.exercise.type || "").toString().toL
             <span class = "btn-lines">Edit<br />Exercise</span>
           </v-btn>
           <v-btn
+            v-if = "showMutationOptions"
             color = "error"
             variant = "text"
             :disabled = "mutationPending"
@@ -61,6 +71,7 @@ const normalizedType = computed(() => (props.exercise.type || "").toString().toL
           <div class = "d-flex justify-space-between align-center mb-2">
             <h4 class = "text-subtitle-2 font-weight-medium mb-0">Sets</h4>
             <v-btn
+              v-if = "showMutationOptions"
               variant = "text"
               size = "small"
               color = "primary"
@@ -85,6 +96,7 @@ const normalizedType = computed(() => (props.exercise.type || "").toString().toL
             v-else
             :sets = "exercise.sets"
             :type = "normalizedType"
+            :show-actual = "showActualResults"
           />
         </v-col>
       </v-row>
