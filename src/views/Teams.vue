@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import apiClient from "../services/services";
+import apiClient from "../services/apiService";
 import { useRouter } from "vue-router";
+import networkService from "../services/networkService";
 
 const yourTeams = ref([]);
 
@@ -40,14 +41,8 @@ const getAthletesOnTeam = async () => {
 };
 
 const getAllAthletes = async () => {
-  const response = await apiClient.get(`users`);
-  if (response.status != 200){
-    throw Error("status not 200.")
-  }
-  availableAthletes.value = []
-  response.data.forEach((athlete) =>{
-    availableAthletes.value.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
-  })
+  const allUsers = await networkService.getAllUsers();
+  availableAthletes.value = allUsers;
 };
 
 const teamSelected = (type, teamId) => {
@@ -67,13 +62,8 @@ const teamSelected = (type, teamId) => {
 }
 
 const loadTeams = async () => {
-  const response = await apiClient.get("team");
-  const data = response.data;
-  if (Array.isArray(data)) {
-    yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
-  } else {
-    yourTeams.value = [];
-  }
+  const allTeams = await networkService.getAllTeams();
+  yourTeams.value = allTeams;
 };
 
 onMounted(() => {

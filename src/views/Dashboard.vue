@@ -11,7 +11,7 @@ import {
 } from "chart.js";
 import { Bar } from "vue-chartjs";
 import Utils from "../config/utils";
-import apiClient from "../services/services.js";
+import apiClient from "../services/apiService";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
