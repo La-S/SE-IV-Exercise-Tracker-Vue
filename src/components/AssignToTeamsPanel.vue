@@ -24,6 +24,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  successMessage: {
+    type: String,
+    default: "",
+  },
 });
 
 const emit = defineEmits(["update:selectedTeamIds", "update:assignmentDate", "assign"]);
@@ -50,6 +54,9 @@ const assign = () => emit("assign");
     <v-card-text>
       <v-alert v-if="error" type="error" variant="tonal" class="mb-3">
         {{ error }}
+      </v-alert>
+      <v-alert v-if="successMessage" type="success" variant="tonal" density="comfortable" class="mb-3">
+        {{ successMessage }}
       </v-alert>
 
       <div class="text-body-2 text-medium-emphasis mb-2">Teams</div>
