@@ -6,6 +6,8 @@ import ExerciseItem from "../components/ExerciseItem.vue";
 import PlanListPanel from "../components/PlanListPanel.vue";
 import PlanFormDialog from "../components/PlanFormDialog.vue";
 import AssignToTeamsPanel from "../components/AssignToTeamsPanel.vue";
+import EditExerciseDialog from "../components/EditExerciseDialog.vue";
+import EditPlanExerciseDialog from "../components/EditPlanExerciseDialog.vue";
 import Utils from "../config/utils.js";
 
 const DEFAULT_REST_TIMER = 90;
@@ -1759,264 +1761,26 @@ watch(editExerciseDialog, (isOpen) => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="editExerciseDialog" max-width="520">
-      <v-card>
-        <v-card-title>Edit Exercise</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="updateExercise">
-            <v-alert
-              v-if="editExercise.source === 'library'"
-              type="info"
-              variant="tonal"
-              class="mb-4"
-            >
-              Updating this exercise will also update any plans using it.
-            </v-alert>
-            <v-alert
-              v-else
-              type="info"
-              variant="tonal"
-              class="mb-4"
-            >
-              Template fields are locked here. Adjust the rest timer or notes for this plan.
-            </v-alert>
-            <v-alert
-              v-if="exerciseMutationError"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ exerciseMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="editExercise.name"
-              label="Exercise name"
-              prepend-inner-icon="mdi-dumbbell"
-              :disabled="editExercise.source === 'plan'"
-              required
-            />
-            <v-select
-              v-model="editExercise.type"
-              :items="['Strength', 'Cardio', 'Mobility', 'Other']"
-              label="Type"
-              prepend-inner-icon="mdi-format-list-bulleted"
-              :disabled="editExercise.source === 'plan'"
-            />
-            <v-text-field
-              v-model="editExercise.muscleGroup"
-              label="Muscle group"
-              prepend-inner-icon="mdi-dna"
-              :disabled="editExercise.source === 'plan'"
-            />
-            <v-text-field
-              v-if="editExercise.source === 'plan'"
-              v-model="editExercise.restTimer"
-              label="Rest timer (seconds)"
-              type="number"
-              min="0"
-              prepend-inner-icon="mdi-timer-outline"
-              density="comfortable"
-              class="mt-3"
-            />
-            <v-textarea
-              v-if="editExercise.source === 'plan'"
-              v-model="editExercise.notes"
-              label="Notes"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-note-text"
-              density="comfortable"
-              class="mt-3"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="editExerciseDialog = false">
-                Cancel
-              </v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="!editExercise.name || exerciseMutationPending"
-                :loading="exerciseMutationPending"
-              >
-                Save
-              </v-btn>
-            </v-card-actions>
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <edit-exercise-dialog
+      v-model="editExerciseDialog"
+      :exercise="editExercise"
+      :pending="exerciseMutationPending"
+      :error="exerciseMutationError || ''"
+      @submit="updateExercise"
+      @cancel="editExerciseDialog = false"
+    />
 
-    <v-dialog v-model="editPlanExerciseDialog" max-width="900">
-      <v-card>
-        <v-card-title>Edit Exercise</v-card-title>
-        <v-card-text>
-          <v-alert
-            v-if="exerciseMutationError && editPlanExerciseDialog"
-            type="error"
-            variant="tonal"
-            density="comfortable"
-            class="mb-4"
-          >
-            {{ exerciseMutationError }}
-          </v-alert>
-
-          <div class="mb-4">
-            <div class="text-subtitle-1 font-weight-medium">
-              {{ planExerciseDraft.templateName }}
-            </div>
-            <div class="text-body-2 text-medium-emphasis">
-              {{ planExerciseDraft.templateLabel }} • {{ planExerciseDraft.muscleGroupLabel || "General" }}
-            </div>
-          </div>
-
-          <v-row>
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="planExerciseDraft.restTimer"
-                label="Rest timer (seconds)"
-                type="number"
-                min="0"
-                prepend-inner-icon="mdi-timer-outline"
-                density="comfortable"
-              />
-            </v-col>
-            <v-col cols="12" md="8">
-              <v-textarea
-                v-model="planExerciseDraft.notes"
-                label="Notes"
-                rows="2"
-                auto-grow
-                prepend-inner-icon="mdi-note-text"
-                density="comfortable"
-              />
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4" />
-
-          <div class="d-flex justify-space-between align-center mb-2">
-            <h4 class="text-subtitle-2 font-weight-medium mb-0">Sets</h4>
-            <v-btn
-              variant="text"
-              size="small"
-              color="primary"
-              @click="addDraftSet(planExerciseDraft)"
-            >
-              Add Set
-            </v-btn>
-          </div>
-
-          <v-alert
-            v-if="!planExerciseDraft.sets.length"
-            type="info"
-            variant="tonal"
-            density="comfortable"
-            class="mb-2"
-          >
-            No sets added yet.
-          </v-alert>
-
-          <div v-else>
-            <div
-              v-for="(set, index) in planExerciseDraft.sets"
-              :key="index"
-              class="pa-3 rounded-lg mb-3"
-              style="background-color: rgba(255,255,255,0.04);"
-            >
-              <div class="d-flex justify-space-between align-center mb-2">
-                <span class="text-body-2 font-weight-medium">Set {{ index + 1 }}</span>
-                <v-btn
-                  variant="tonal"
-                  color="error"
-                  size="small"
-                  prepend-icon="mdi-delete"
-                  @click="removeDraftSet(planExerciseDraft, index)"
-                >
-                  Remove
-                </v-btn>
-              </div>
-              <v-row>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
-                  <v-text-field
-                    v-model="set.goalWeight"
-                    label="Goal weight (lbs)"
-                    type="number"
-                    prepend-inner-icon="mdi-weight-lifter"
-                    density="comfortable"
-                  />
-                </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
-                  <v-text-field
-                    v-model="set.goalReps"
-                    label="Goal reps"
-                    type="number"
-                    prepend-inner-icon="mdi-counter"
-                    density="comfortable"
-                  />
-                </v-col>
-
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
-                  <v-text-field
-                    v-model="set.goalDist"
-                    label="Goal distance"
-                    type="number"
-                    prepend-inner-icon="mdi-ruler"
-                    density="comfortable"
-                  />
-                </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
-                  <v-select
-                    v-model="set.distUnits"
-                    :items="cardioDistanceUnits"
-                    label="Distance units"
-                    prepend-inner-icon="mdi-ruler-square"
-                    density="comfortable"
-                  />
-                </v-col>
-                <v-col
-                  cols="12"
-                  md="4"
-                  v-if="planExerciseDraft.templateType !== 'strength' && planExerciseDraft.templateType !== 'cardio'"
-                >
-                  <v-text-field
-                    v-model="set.goalReps"
-                    label="Goal reps"
-                    type="number"
-                    prepend-inner-icon="mdi-counter"
-                    density="comfortable"
-                  />
-                </v-col>
-              </v-row>
-            </div>
-          </div>
-
-          <v-alert
-            v-if="planExerciseDraftValidation"
-            type="error"
-            variant="tonal"
-            density="comfortable"
-            class="mt-2"
-          >
-            {{ planExerciseDraftValidation }}
-          </v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="editPlanExerciseDialog = false">
-            Cancel
-          </v-btn>
-          <v-btn
-            color="primary"
-            :disabled="!canSavePlanExercise"
-            :loading="exerciseMutationPending"
-            @click="savePlanExerciseDraft"
-          >
-            Save
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <edit-plan-exercise-dialog
+      v-model="editPlanExerciseDialog"
+      :draft="planExerciseDraft"
+      :pending="exerciseMutationPending"
+      :error="exerciseMutationError || ''"
+      :validation="planExerciseDraftValidation || ''"
+      @add-set="addDraftSet(planExerciseDraft)"
+      @remove-set="(index) => removeDraftSet(planExerciseDraft, index)"
+      @save="savePlanExerciseDraft"
+      @cancel="editPlanExerciseDialog = false"
+    />
 
     <plan-form-dialog
       v-model="newPlanDialog"

@@ -73,31 +73,31 @@ const submit = () => {
 </script>
 
 <template>
-  <v-dialog :model-value="modelValue" max-width="520" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog :model-value = "modelValue" max-width = "520" @update:model-value = "emit('update:modelValue', $event)">
     <v-card>
       <v-card-title>{{ title }}</v-card-title>
       <v-card-text>
-        <v-form @submit.prevent="submit">
-          <v-alert v-if="error && modelValue" type="error" variant="tonal" class="mb-4">
+        <v-form @submit.prevent = "submit">
+          <v-alert v-if = "error && modelValue" type = "error" variant = "tonal" class = "mb-4">
             {{ error }}
           </v-alert>
           <v-text-field
-            v-model="form.focusArea"
-            label="Focus area"
-            prepend-inner-icon="mdi-crosshairs-gps"
+            v-model = "form.focusArea"
+            label = "Focus area"
+            prepend-inner-icon = "mdi-crosshairs-gps"
             required
           />
           <v-textarea
-            v-model="form.notes"
-            label="Notes"
-            rows="3"
+            v-model = "form.notes"
+            label = "Notes"
+            rows = "3"
             auto-grow
-            prepend-inner-icon="mdi-note-outline"
+            prepend-inner-icon = "mdi-note-outline"
           />
-          <v-card-actions class="mt-2">
+          <v-card-actions class = "mt-2">
             <v-spacer />
-            <v-btn variant="text" @click="cancel">Cancel</v-btn>
-            <v-btn type="submit" color="primary" :disabled="loading || !form.focusArea" :loading="loading">
+            <v-btn variant = "text" @click = "cancel">Cancel</v-btn>
+            <v-btn type = "submit" color = "primary" :disabled = "loading || !form.focusArea" :loading = "loading">
               {{ submitLabel }}
             </v-btn>
           </v-card-actions>
