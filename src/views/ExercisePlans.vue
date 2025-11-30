@@ -9,25 +9,15 @@ import AssignToTeamsPanel from "../components/AssignToTeamsPanel.vue";
 import EditExerciseDialog from "../components/EditExerciseDialog.vue";
 import EditPlanExerciseDialog from "../components/EditPlanExerciseDialog.vue";
 import Utils from "../config/utils.js";
+import {
+  muscleFocusOrder,
+  cardioDistanceUnits,
+  formatLabel,
+  toDateInputValue,
+  formatDateLabel,
+} from "../utils/exerciseHelpers.js";
 
 const DEFAULT_REST_TIMER = 90;
-
-const muscleFocusOrder = [
-  "Core",
-  "Chest",
-  "Bicep",
-  "Tricep",
-  "Forearm",
-  "Shoulder",
-  "Back",
-  "Hamstring",
-  "Calf",
-  "Quad",
-  "Glute",
-  "Cardio",
-  "Other",
-];
-const cardioDistanceUnits = ["mi", "km", "m", "feet", "laps"];
 
 const plans = ref([]);
 
@@ -150,30 +140,6 @@ const assignmentDisabledReason = computed(() => {
   if (!teamAssignment.assignmentDate) return "Choose an assignment date.";
   return "";
 });
-
-const formatLabel = (value) => {
-  if (!value && value !== 0) return "";
-  const label = String(value);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
-
-const toDateInputValue = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toISOString().slice(0, 10);
-};
-
-const formatDateLabel = (value) => {
-  if (!value) return "Not set";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleDateString();
-};
 
 const parseNumericId = (value) => {
   if (value === null || value === undefined) return null;
@@ -774,6 +740,8 @@ const assignWorkoutToTeams = async () => {
     teamAssignment.successMessage = `Assigned to ${teamAssignment.selectedTeamIds.length} team${
       teamAssignment.selectedTeamIds.length > 1 ? "s" : ""
     }.`;
+    teamAssignment.selectedTeamIds = [];
+    teamAssignment.assignmentDate = "";
   } catch (error) {
     console.error("Failed to assign workout to teams", error);
     teamAssignment.error =
@@ -1392,7 +1360,8 @@ watch(editExerciseDialog, (isOpen) => {
           :assignment-date="teamAssignment.assignmentDate"
           :loading="teamAssignment.pending"
           :disabled-reason="assignmentDisabledReason"
-          :error="teamLoadError"
+          :error="teamAssignment.error || teamLoadError"
+          :success-message="teamAssignment.successMessage"
           @update:selected-team-ids="teamAssignment.selectedTeamIds = $event"
           @update:assignment-date="teamAssignment.assignmentDate = $event"
           @assign="assignWorkoutToTeams"
