@@ -25,7 +25,7 @@ async function getAthleteInfo() {
 }
 
 async function getExercises() {
-  const body = {"startDate": dayjs().subtract(7, 'day').toISOString(), "endDate": dayjs().add(7, 'day').toISOString()}
+  const body = {"startDate": dayjs().subtract(2, 'month').toISOString(), "endDate": dayjs().add(7, 'day').toISOString()}
   const response = await apiClient.post(`/workout/user/${athleteId}/dated`, body);
   if (response.status != 200){
     throw Error("status not 200.")
