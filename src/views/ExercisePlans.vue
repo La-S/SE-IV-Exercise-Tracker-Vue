@@ -5,6 +5,7 @@ import apiClient from "../services/services.js";
 import ExerciseItem from "../components/ExerciseItem.vue";
 import PlanListPanel from "../components/PlanListPanel.vue";
 import PlanFormDialog from "../components/PlanFormDialog.vue";
+import AssignToTeamsPanel from "../components/AssignToTeamsPanel.vue";
 import Utils from "../config/utils.js";
 
 const DEFAULT_REST_TIMER = 90;
@@ -1383,91 +1384,17 @@ watch(editExerciseDialog, (isOpen) => {
       </v-col>
 
       <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0">
-        <v-card class="h-100">
-          <v-card-title class="text-subtitle-1 font-weight-medium">
-            Assign to Teams
-          </v-card-title>
-          <v-divider />
-          <v-card-text>
-            <v-alert
-              v-if="teamLoadError"
-              type="error"
-              variant="tonal"
-              density="comfortable"
-              class="mb-4"
-            >
-              {{ teamLoadError }}
-            </v-alert>
-            <div v-else>
-              <p class="text-body-2 mb-3">
-                Assign the selected workout plan to one or more teams. Every athlete in each team receives a copy of the plan with all exercises and sets.
-              </p>
-              <v-select
-                v-model="teamAssignment.selectedTeamIds"
-                :items="teams"
-                item-title="name"
-                item-value="id"
-                label="Select teams"
-                multiple
-                chips
-                density="comfortable"
-                :disabled="teamsLoading || !selectedPlan"
-              />
-              <v-text-field
-                v-model="teamAssignment.assignmentDate"
-                label="Assignment date"
-                type="date"
-                prepend-inner-icon="mdi-calendar"
-                density="comfortable"
-                class="mt-3"
-                :disabled="teamAssignment.pending || !selectedPlan"
-              />
-              <v-alert
-                v-if="teamAssignment.error"
-                type="error"
-                variant="tonal"
-                density="comfortable"
-                class="mt-3"
-              >
-                {{ teamAssignment.error }}
-              </v-alert>
-              <v-alert
-                v-if="teamAssignment.successMessage"
-                type="success"
-                variant="tonal"
-                density="comfortable"
-                class="mt-3"
-              >
-                {{ teamAssignment.successMessage }}
-              </v-alert>
-              <v-alert
-                v-if="assignmentDisabledReason && !teamAssignment.pending"
-                type="info"
-                variant="tonal"
-                density="comfortable"
-                class="mt-3"
-              >
-                {{ assignmentDisabledReason }}
-              </v-alert>
-            </div>
-          </v-card-text>
-          <v-card-actions class="px-4 pb-4">
-            <v-btn
-              block
-              color="primary"
-              :disabled="
-                !selectedPlan ||
-                !!assignmentDisabledReason ||
-                teamAssignment.pending ||
-                teamsLoading
-              "
-              :loading="teamAssignment.pending"
-              @click="assignWorkoutToTeams"
-            >
-              Assign Workout
-            </v-btn>
-          </v-card-actions>
-        </v-card>
+        <assign-to-teams-panel
+          :teams="teams"
+          :selected-team-ids="teamAssignment.selectedTeamIds"
+          :assignment-date="teamAssignment.assignmentDate"
+          :loading="teamAssignment.pending"
+          :disabled-reason="assignmentDisabledReason"
+          :error="teamLoadError"
+          @update:selected-team-ids="teamAssignment.selectedTeamIds = $event"
+          @update:assignment-date="teamAssignment.assignmentDate = $event"
+          @assign="assignWorkoutToTeams"
+        />
       </v-col>
     </v-row>
 
