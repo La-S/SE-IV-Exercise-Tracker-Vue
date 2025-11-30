@@ -3,26 +3,21 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import apiClient from "../services/services.js";
 import ExerciseItem from "../components/ExerciseItem.vue";
+import PlanListPanel from "../components/PlanListPanel.vue";
+import PlanFormDialog from "../components/PlanFormDialog.vue";
+import AssignToTeamsPanel from "../components/AssignToTeamsPanel.vue";
+import EditExerciseDialog from "../components/EditExerciseDialog.vue";
+import EditPlanExerciseDialog from "../components/EditPlanExerciseDialog.vue";
 import Utils from "../config/utils.js";
+import {
+  muscleFocusOrder,
+  cardioDistanceUnits,
+  formatLabel,
+  toDateInputValue,
+  formatDateLabel,
+} from "../utils/exerciseHelpers.js";
 
 const DEFAULT_REST_TIMER = 90;
-
-const muscleFocusOrder = [
-  "Core",
-  "Chest",
-  "Bicep",
-  "Tricep",
-  "Forearm",
-  "Shoulder",
-  "Back",
-  "Hamstring",
-  "Calf",
-  "Quad",
-  "Glute",
-  "Cardio",
-  "Other",
-];
-const cardioDistanceUnits = ["mi", "km", "m", "feet", "laps"];
 
 const plans = ref([]);
 
@@ -146,30 +141,6 @@ const assignmentDisabledReason = computed(() => {
   return "";
 });
 
-const formatLabel = (value) => {
-  if (!value && value !== 0) return "";
-  const label = String(value);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
-
-const toDateInputValue = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toISOString().slice(0, 10);
-};
-
-const formatDateLabel = (value) => {
-  if (!value) return "Not set";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleDateString();
-};
-
 const parseNumericId = (value) => {
   if (value === null || value === undefined) return null;
   const numberValue = Number(value);
@@ -240,21 +211,6 @@ watch(
       exerciseMutationError.value = null;
     }
   }
-);
-
-const shouldOpenNewPlanDialog = (value) =>
-  value === "true" || value === "1" || value === true;
-
-watch(
-  () => route.query.newPlan,
-  async (value) => {
-    if (shouldOpenNewPlanDialog(value) && !newPlanDialog.value) {
-      await nextTick();
-      newPlanDialog.value = true;
-      clearNewPlanQueryFlag();
-    }
-  },
-  { immediate: true }
 );
 
 const setTemplateLookup = () => {
@@ -761,6 +717,8 @@ const assignWorkoutToTeams = async () => {
     teamAssignment.successMessage = `Assigned to ${teamAssignment.selectedTeamIds.length} team${
       teamAssignment.selectedTeamIds.length > 1 ? "s" : ""
     }.`;
+    teamAssignment.selectedTeamIds = [];
+    teamAssignment.assignmentDate = "";
   } catch (error) {
     console.error("Failed to assign workout to teams", error);
     teamAssignment.error =
@@ -1101,12 +1059,13 @@ const buildPlanPayload = (plan) => {
   };
 };
 
-const createPlan = async () => {
-  if (!newPlan.focusArea.trim() || planMutationPending.value) {
+const createPlan = async (formValues) => {
+  const source = formValues ?? newPlan;
+  if (!source.focusArea?.trim() || planMutationPending.value) {
     return;
   }
 
-  const payload = buildPlanPayload(newPlan);
+  const payload = buildPlanPayload(source);
   if (!payload) {
     planMutationError.value = "A numeric user ID is required to create plans.";
     return;
@@ -1130,17 +1089,18 @@ const createPlan = async () => {
   }
 };
 
-const updatePlan = async () => {
-  if (!editPlan.id || !editPlan.focusArea.trim() || planMutationPending.value) {
+const updatePlan = async (formValues) => {
+  const source = formValues ?? editPlan;
+  if (!source.id || !source.focusArea?.trim() || planMutationPending.value) {
     return;
   }
 
-  const plan = plans.value.find((item) => item.id === editPlan.id);
+  const plan = plans.value.find((item) => item.id === source.id);
   if (!plan) {
     return;
   }
 
-  const payload = buildPlanPayload(editPlan);
+  const payload = buildPlanPayload(source);
   if (!payload) {
     planMutationError.value = "A numeric user ID is required to update plans.";
     return;
@@ -1149,13 +1109,13 @@ const updatePlan = async () => {
   try {
     planMutationError.value = null;
     planMutationPending.value = true;
-    await apiClient.put(`workout/${editPlan.id}`, payload);
-    applyPlanUpdates(plan, editPlan);
+    await apiClient.put(`workout/${source.id}`, payload);
+    applyPlanUpdates(plan, source);
     ensureSelectedPlan();
     editPlanDialog.value = false;
     resetEditPlan();
   } catch (error) {
-    console.error(`Failed to update plan ${editPlan.id}`, error);
+    console.error(`Failed to update plan ${source.id}`, error);
     planMutationError.value =
       error?.response?.data?.message || "Unable to update the plan. Please try again.";
   } finally {
@@ -1237,64 +1197,14 @@ watch(editExerciseDialog, (isOpen) => {
   <v-container fluid class="pa-6">
     <v-row align="stretch" justify="center" no-gutters>
       <v-col cols="12" lg="3" class="pr-lg-4">
-        <v-card class="h-100 d-flex flex-column">
-          <v-card-title class="d-flex align-center justify-space-between flex-wrap gap-2">
-            <span class="text-h6 text-sm-h5">Exercise Plans</span>
-            <v-btn
-              variant="tonal"
-              color="primary"
-              size="small"
-              prepend-icon="mdi-plus"
-              class="text-none"
-              @click="newPlanDialog = true"
-            >
-              Create Plan
-            </v-btn>
-          </v-card-title>
-
-          <v-divider />
-
-          <v-card-text class="flex-grow-1 overflow-y-auto pr-2">
-            <v-alert
-              v-if="planLoadError"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ planLoadError }}
-            </v-alert>
-            <div v-else-if="plansLoading" class="d-flex justify-center py-6">
-              <v-progress-circular indeterminate color="primary" />
-            </div>
-            <template v-else>
-              <v-list v-if="plans.length" density="compact" nav>
-                <v-list-item
-                  v-for="plan in plans"
-                  :key="plan.id"
-                  :active="selectedPlanId === plan.id"
-                  rounded
-                  class="mb-2"
-                  @click="selectedPlanId = plan.id"
-                >
-                  <v-list-item-title class="font-weight-medium">
-                    {{ plan.focusArea }}
-                  </v-list-item-title>
-                  <v-list-item-subtitle>
-                    {{ plan.notes || "No notes yet" }}
-                  </v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
-              <v-alert
-                v-else
-                type="info"
-                variant="tonal"
-                density="comfortable"
-              >
-                No workouts yet. Create one to get started.
-              </v-alert>
-            </template>
-          </v-card-text>
-        </v-card>
+        <plan-list-panel
+          :plans="plans"
+          :selected-plan-id="selectedPlanId"
+          :loading="plansLoading"
+          :error="planLoadError"
+          @create="newPlanDialog = true"
+          @select="selectedPlanId = $event"
+        />
       </v-col>
 
       <v-col cols="12" lg="6" class="px-lg-4 mt-6 mt-lg-0">
@@ -1421,91 +1331,18 @@ watch(editExerciseDialog, (isOpen) => {
       </v-col>
 
       <v-col cols="12" lg="3" class="pl-lg-4 mt-6 mt-lg-0">
-        <v-card class="h-100">
-          <v-card-title class="text-subtitle-1 font-weight-medium">
-            Assign to Teams
-          </v-card-title>
-          <v-divider />
-          <v-card-text>
-            <v-alert
-              v-if="teamLoadError"
-              type="error"
-              variant="tonal"
-              density="comfortable"
-              class="mb-4"
-            >
-              {{ teamLoadError }}
-            </v-alert>
-            <div v-else>
-              <p class="text-body-2 mb-3">
-                Assign the selected workout plan to one or more teams. Every athlete in each team receives a copy of the plan with all exercises and sets.
-              </p>
-              <v-select
-                v-model="teamAssignment.selectedTeamIds"
-                :items="teams"
-                item-title="name"
-                item-value="id"
-                label="Select teams"
-                multiple
-                chips
-                density="comfortable"
-                :disabled="teamsLoading || !selectedPlan"
-              />
-              <v-text-field
-                v-model="teamAssignment.assignmentDate"
-                label="Assignment date"
-                type="date"
-                prepend-inner-icon="mdi-calendar"
-                density="comfortable"
-                class="mt-3"
-                :disabled="teamAssignment.pending || !selectedPlan"
-              />
-              <v-alert
-                v-if="teamAssignment.error"
-                type="error"
-                variant="tonal"
-                density="comfortable"
-                class="mt-3"
-              >
-                {{ teamAssignment.error }}
-              </v-alert>
-              <v-alert
-                v-if="teamAssignment.successMessage"
-                type="success"
-                variant="tonal"
-                density="comfortable"
-                class="mt-3"
-              >
-                {{ teamAssignment.successMessage }}
-              </v-alert>
-              <v-alert
-                v-if="assignmentDisabledReason && !teamAssignment.pending"
-                type="info"
-                variant="tonal"
-                density="comfortable"
-                class="mt-3"
-              >
-                {{ assignmentDisabledReason }}
-              </v-alert>
-            </div>
-          </v-card-text>
-          <v-card-actions class="px-4 pb-4">
-            <v-btn
-              block
-              color="primary"
-              :disabled="
-                !selectedPlan ||
-                !!assignmentDisabledReason ||
-                teamAssignment.pending ||
-                teamsLoading
-              "
-              :loading="teamAssignment.pending"
-              @click="assignWorkoutToTeams"
-            >
-              Assign Workout
-            </v-btn>
-          </v-card-actions>
-        </v-card>
+        <assign-to-teams-panel
+          :teams="teams"
+          :selected-team-ids="teamAssignment.selectedTeamIds"
+          :assignment-date="teamAssignment.assignmentDate"
+          :loading="teamAssignment.pending"
+          :disabled-reason="assignmentDisabledReason"
+          :error="teamAssignment.error || teamLoadError"
+          :success-message="teamAssignment.successMessage"
+          @update:selected-team-ids="teamAssignment.selectedTeamIds = $event"
+          @update:assignment-date="teamAssignment.assignmentDate = $event"
+          @assign="assignWorkoutToTeams"
+        />
       </v-col>
     </v-row>
 
@@ -1870,352 +1707,48 @@ watch(editExerciseDialog, (isOpen) => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="editExerciseDialog" max-width="520">
-      <v-card>
-        <v-card-title>Edit Exercise</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="updateExercise">
-            <v-alert
-              v-if="editExercise.source === 'library'"
-              type="info"
-              variant="tonal"
-              class="mb-4"
-            >
-              Updating this exercise will also update any plans using it.
-            </v-alert>
-            <v-alert
-              v-else
-              type="info"
-              variant="tonal"
-              class="mb-4"
-            >
-              Template fields are locked here. Adjust the rest timer or notes for this plan.
-            </v-alert>
-            <v-alert
-              v-if="exerciseMutationError"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ exerciseMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="editExercise.name"
-              label="Exercise name"
-              prepend-inner-icon="mdi-dumbbell"
-              :disabled="editExercise.source === 'plan'"
-              required
-            />
-            <v-select
-              v-model="editExercise.type"
-              :items="['Strength', 'Cardio', 'Mobility', 'Other']"
-              label="Type"
-              prepend-inner-icon="mdi-format-list-bulleted"
-              :disabled="editExercise.source === 'plan'"
-            />
-            <v-text-field
-              v-model="editExercise.muscleGroup"
-              label="Muscle group"
-              prepend-inner-icon="mdi-dna"
-              :disabled="editExercise.source === 'plan'"
-            />
-            <v-text-field
-              v-if="editExercise.source === 'plan'"
-              v-model="editExercise.restTimer"
-              label="Rest timer (seconds)"
-              type="number"
-              min="0"
-              prepend-inner-icon="mdi-timer-outline"
-              density="comfortable"
-              class="mt-3"
-            />
-            <v-textarea
-              v-if="editExercise.source === 'plan'"
-              v-model="editExercise.notes"
-              label="Notes"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-note-text"
-              density="comfortable"
-              class="mt-3"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="editExerciseDialog = false">
-                Cancel
-              </v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="!editExercise.name || exerciseMutationPending"
-                :loading="exerciseMutationPending"
-              >
-                Save
-              </v-btn>
-            </v-card-actions>
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <edit-exercise-dialog
+      v-model="editExerciseDialog"
+      :exercise="editExercise"
+      :pending="exerciseMutationPending"
+      :error="exerciseMutationError || ''"
+      @submit="updateExercise"
+      @cancel="editExerciseDialog = false"
+    />
 
-    <v-dialog v-model="editPlanExerciseDialog" max-width="900">
-      <v-card>
-        <v-card-title>Edit Exercise</v-card-title>
-        <v-card-text>
-          <v-alert
-            v-if="exerciseMutationError && editPlanExerciseDialog"
-            type="error"
-            variant="tonal"
-            density="comfortable"
-            class="mb-4"
-          >
-            {{ exerciseMutationError }}
-          </v-alert>
+    <edit-plan-exercise-dialog
+      v-model="editPlanExerciseDialog"
+      :draft="planExerciseDraft"
+      :pending="exerciseMutationPending"
+      :error="exerciseMutationError || ''"
+      :validation="planExerciseDraftValidation || ''"
+      @add-set="addDraftSet(planExerciseDraft)"
+      @remove-set="(index) => removeDraftSet(planExerciseDraft, index)"
+      @save="savePlanExerciseDraft"
+      @cancel="editPlanExerciseDialog = false"
+    />
 
-          <div class="mb-4">
-            <div class="text-subtitle-1 font-weight-medium">
-              {{ planExerciseDraft.templateName }}
-            </div>
-            <div class="text-body-2 text-medium-emphasis">
-              {{ planExerciseDraft.templateLabel }} • {{ planExerciseDraft.muscleGroupLabel || "General" }}
-            </div>
-          </div>
+    <plan-form-dialog
+      v-model="newPlanDialog"
+      title="Create New Plan"
+      submit-label="Create"
+      :loading="planMutationPending"
+      :error="planMutationError || ''"
+      :initial-plan="newPlan"
+      @submit="createPlan"
+      @cancel="newPlanDialog = false"
+    />
 
-          <v-row>
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="planExerciseDraft.restTimer"
-                label="Rest timer (seconds)"
-                type="number"
-                min="0"
-                prepend-inner-icon="mdi-timer-outline"
-                density="comfortable"
-              />
-            </v-col>
-            <v-col cols="12" md="8">
-              <v-textarea
-                v-model="planExerciseDraft.notes"
-                label="Notes"
-                rows="2"
-                auto-grow
-                prepend-inner-icon="mdi-note-text"
-                density="comfortable"
-              />
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4" />
-
-          <div class="d-flex justify-space-between align-center mb-2">
-            <h4 class="text-subtitle-2 font-weight-medium mb-0">Sets</h4>
-            <v-btn
-              variant="text"
-              size="small"
-              color="primary"
-              @click="addDraftSet(planExerciseDraft)"
-            >
-              Add Set
-            </v-btn>
-          </div>
-
-          <v-alert
-            v-if="!planExerciseDraft.sets.length"
-            type="info"
-            variant="tonal"
-            density="comfortable"
-            class="mb-2"
-          >
-            No sets added yet.
-          </v-alert>
-
-          <div v-else>
-            <div
-              v-for="(set, index) in planExerciseDraft.sets"
-              :key="index"
-              class="pa-3 rounded-lg mb-3"
-              style="background-color: rgba(255,255,255,0.04);"
-            >
-              <div class="d-flex justify-space-between align-center mb-2">
-                <span class="text-body-2 font-weight-medium">Set {{ index + 1 }}</span>
-                <v-btn
-                  variant="tonal"
-                  color="error"
-                  size="small"
-                  prepend-icon="mdi-delete"
-                  @click="removeDraftSet(planExerciseDraft, index)"
-                >
-                  Remove
-                </v-btn>
-              </div>
-              <v-row>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
-                  <v-text-field
-                    v-model="set.goalWeight"
-                    label="Goal weight (lbs)"
-                    type="number"
-                    prepend-inner-icon="mdi-weight-lifter"
-                    density="comfortable"
-                  />
-                </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'strength'">
-                  <v-text-field
-                    v-model="set.goalReps"
-                    label="Goal reps"
-                    type="number"
-                    prepend-inner-icon="mdi-counter"
-                    density="comfortable"
-                  />
-                </v-col>
-
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
-                  <v-text-field
-                    v-model="set.goalDist"
-                    label="Goal distance"
-                    type="number"
-                    prepend-inner-icon="mdi-ruler"
-                    density="comfortable"
-                  />
-                </v-col>
-                <v-col cols="12" md="4" v-if="planExerciseDraft.templateType === 'cardio'">
-                  <v-select
-                    v-model="set.distUnits"
-                    :items="cardioDistanceUnits"
-                    label="Distance units"
-                    prepend-inner-icon="mdi-ruler-square"
-                    density="comfortable"
-                  />
-                </v-col>
-                <v-col
-                  cols="12"
-                  md="4"
-                  v-if="planExerciseDraft.templateType !== 'strength' && planExerciseDraft.templateType !== 'cardio'"
-                >
-                  <v-text-field
-                    v-model="set.goalReps"
-                    label="Goal reps"
-                    type="number"
-                    prepend-inner-icon="mdi-counter"
-                    density="comfortable"
-                  />
-                </v-col>
-              </v-row>
-            </div>
-          </div>
-
-          <v-alert
-            v-if="planExerciseDraftValidation"
-            type="error"
-            variant="tonal"
-            density="comfortable"
-            class="mt-2"
-          >
-            {{ planExerciseDraftValidation }}
-          </v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="editPlanExerciseDialog = false">
-            Cancel
-          </v-btn>
-          <v-btn
-            color="primary"
-            :disabled="!canSavePlanExercise"
-            :loading="exerciseMutationPending"
-            @click="savePlanExerciseDraft"
-          >
-            Save
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="newPlanDialog" max-width="520">
-      <v-card>
-        <v-card-title>Create New Plan</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="createPlan">
-            <v-alert
-              v-if="planMutationError && newPlanDialog"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ planMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="newPlan.focusArea"
-              label="Focus area"
-              prepend-inner-icon="mdi-crosshairs-gps"
-              required
-            />
-            <v-textarea
-              v-model="newPlan.notes"
-              label="Notes"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-note-outline"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="newPlanDialog = false">Cancel</v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="planMutationPending"
-                :loading="planMutationPending"
-              >
-                Create
-              </v-btn>
-            </v-card-actions>
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="editPlanDialog" max-width="520">
-      <v-card>
-        <v-card-title>Edit Plan</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="updatePlan">
-            <v-alert
-              v-if="planMutationError && editPlanDialog"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ planMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="editPlan.focusArea"
-              label="Focus area"
-              prepend-inner-icon="mdi-crosshairs-gps"
-              required
-            />
-            <v-textarea
-              v-model="editPlan.notes"
-              label="Notes"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-note-outline"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="editPlanDialog = false; resetEditPlan();">
-                Cancel
-              </v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="!editPlan.focusArea || planMutationPending"
-                :loading="planMutationPending"
-              >
-                Save
-              </v-btn>
-            </v-card-actions>
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <plan-form-dialog
+      v-model="editPlanDialog"
+      title="Edit Plan"
+      submit-label="Save"
+      :loading="planMutationPending"
+      :error="planMutationError || ''"
+      :initial-plan="editPlan"
+      @submit="updatePlan"
+      @cancel="editPlanDialog = false; resetEditPlan();"
+    />
   </v-container>
 </template>
 
