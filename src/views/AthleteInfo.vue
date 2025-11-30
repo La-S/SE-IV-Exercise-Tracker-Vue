@@ -3,8 +3,7 @@ import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import apiClient from '../services/services';
 import dayjs from 'dayjs';
-import SetTable from "../components/SetTable.vue";
-
+import ExerciseItem from "../components/ExerciseItem.vue";
 
 const route = useRoute();
 let athleteId = route.params.id
@@ -279,10 +278,14 @@ getExercises()
         <div v-else-if="exercisesLoading" class="d-flex justify-center py-6">
           <v-progress-circular indeterminate color="primary" />
         </div>
-        <set-table v-else v-for="exercise in dialogExercises"
-          :sets="exercise.sets"
-          :type="exercise.type">
-        </set-table>
+        <exercise-item v-else v-for="exercise in dialogExercises"
+            :key="exercise.assignmentId || exercise.templateId"
+            :exercise="exercise"
+            :mutation-pending="false"
+            @edit="openPlanExerciseEditor(selectedPlan.id, exercise)"
+            @edit-sets="openPlanExerciseEditor(selectedPlan.id, exercise)"
+            @remove="removeExerciseFromPlan(exercise.assignmentId)"
+          />
         
         <v-card-actions>
           <v-spacer />
