@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import apiClient from "../services/services.js";
 import ExerciseItem from "../components/ExerciseItem.vue";
 import PlanListPanel from "../components/PlanListPanel.vue";
+import PlanFormDialog from "../components/PlanFormDialog.vue";
 import Utils from "../config/utils.js";
 
 const DEFAULT_REST_TIMER = 90;
@@ -1110,12 +1111,13 @@ const buildPlanPayload = (plan) => {
   };
 };
 
-const createPlan = async () => {
-  if (!newPlan.focusArea.trim() || planMutationPending.value) {
+const createPlan = async (formValues) => {
+  const source = formValues ?? newPlan;
+  if (!source.focusArea?.trim() || planMutationPending.value) {
     return;
   }
 
-  const payload = buildPlanPayload(newPlan);
+  const payload = buildPlanPayload(source);
   if (!payload) {
     planMutationError.value = "A numeric user ID is required to create plans.";
     return;
@@ -1139,17 +1141,18 @@ const createPlan = async () => {
   }
 };
 
-const updatePlan = async () => {
-  if (!editPlan.id || !editPlan.focusArea.trim() || planMutationPending.value) {
+const updatePlan = async (formValues) => {
+  const source = formValues ?? editPlan;
+  if (!source.id || !source.focusArea?.trim() || planMutationPending.value) {
     return;
   }
 
-  const plan = plans.value.find((item) => item.id === editPlan.id);
+  const plan = plans.value.find((item) => item.id === source.id);
   if (!plan) {
     return;
   }
 
-  const payload = buildPlanPayload(editPlan);
+  const payload = buildPlanPayload(source);
   if (!payload) {
     planMutationError.value = "A numeric user ID is required to update plans.";
     return;
@@ -1158,13 +1161,13 @@ const updatePlan = async () => {
   try {
     planMutationError.value = null;
     planMutationPending.value = true;
-    await apiClient.put(`workout/${editPlan.id}`, payload);
-    applyPlanUpdates(plan, editPlan);
+    await apiClient.put(`workout/${source.id}`, payload);
+    applyPlanUpdates(plan, source);
     ensureSelectedPlan();
     editPlanDialog.value = false;
     resetEditPlan();
   } catch (error) {
-    console.error(`Failed to update plan ${editPlan.id}`, error);
+    console.error(`Failed to update plan ${source.id}`, error);
     planMutationError.value =
       error?.response?.data?.message || "Unable to update the plan. Please try again.";
   } finally {
@@ -2088,93 +2091,27 @@ watch(editExerciseDialog, (isOpen) => {
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="newPlanDialog" max-width="520">
-      <v-card>
-        <v-card-title>Create New Plan</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="createPlan">
-            <v-alert
-              v-if="planMutationError && newPlanDialog"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ planMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="newPlan.focusArea"
-              label="Focus area"
-              prepend-inner-icon="mdi-crosshairs-gps"
-              required
-            />
-            <v-textarea
-              v-model="newPlan.notes"
-              label="Notes"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-note-outline"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="newPlanDialog = false">Cancel</v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="planMutationPending"
-                :loading="planMutationPending"
-              >
-                Create
-              </v-btn>
-            </v-card-actions>
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <plan-form-dialog
+      v-model="newPlanDialog"
+      title="Create New Plan"
+      submit-label="Create"
+      :loading="planMutationPending"
+      :error="planMutationError || ''"
+      :initial-plan="newPlan"
+      @submit="createPlan"
+      @cancel="newPlanDialog = false"
+    />
 
-    <v-dialog v-model="editPlanDialog" max-width="520">
-      <v-card>
-        <v-card-title>Edit Plan</v-card-title>
-        <v-card-text>
-          <v-form @submit.prevent="updatePlan">
-            <v-alert
-              v-if="planMutationError && editPlanDialog"
-              type="error"
-              variant="tonal"
-              class="mb-4"
-            >
-              {{ planMutationError }}
-            </v-alert>
-            <v-text-field
-              v-model="editPlan.focusArea"
-              label="Focus area"
-              prepend-inner-icon="mdi-crosshairs-gps"
-              required
-            />
-            <v-textarea
-              v-model="editPlan.notes"
-              label="Notes"
-              rows="3"
-              auto-grow
-              prepend-inner-icon="mdi-note-outline"
-            />
-            <v-card-actions class="mt-2">
-              <v-spacer />
-              <v-btn variant="text" @click="editPlanDialog = false; resetEditPlan();">
-                Cancel
-              </v-btn>
-              <v-btn
-                type="submit"
-                color="primary"
-                :disabled="!editPlan.focusArea || planMutationPending"
-                :loading="planMutationPending"
-              >
-                Save
-              </v-btn>
-            </v-card-actions>
-          </v-form>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+    <plan-form-dialog
+      v-model="editPlanDialog"
+      title="Edit Plan"
+      submit-label="Save"
+      :loading="planMutationPending"
+      :error="planMutationError || ''"
+      :initial-plan="editPlan"
+      @submit="updatePlan"
+      @cancel="editPlanDialog = false; resetEditPlan();"
+    />
   </v-container>
 </template>
 
