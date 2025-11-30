@@ -31,7 +31,6 @@ const getAthletesOnTeam = async () => {
     selectedTeam.value.athletes = []
     response.data.forEach((athlete) =>{
       selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
-      selectedTeam.value.athletes.sort(athleteSort);
     })
   }
 };
@@ -221,6 +220,7 @@ const addAthletesToTeam = async () => {
     console.error("Failed to add athlete to team", error);
     addAthletesError.value = error?.response?.data?.message || "Unable to add the athletes to your team. Please check your connection and try again later.";
   }
+  getAthletesOnTeam();
 };
 
 const deleteTeam = async (team) => {
