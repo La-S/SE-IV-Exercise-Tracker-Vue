@@ -1,14 +1,22 @@
 <script setup>
 import SocialLogin from "../components/SocialLogin.vue";
+import LoginMenu from "../components/LoginMenu.vue"
 </script>
 
 <template>
-  <v-container>
-    <v-toolbar>
-      <v-toolbar-title>Welcome to the Exercise Tracker</v-toolbar-title>
-    </v-toolbar>
-    <br /><br />
+  <LoginMenu />
+  <v-container class="login-container">
     <SocialLogin />
-    <br /><br />
   </v-container>
 </template>
+
+
+<style scoped>
+.login-container{
+  margin-top:56px; /* 56 is toolbar height*/
+  max-width:90vw;
+  margin-bottom:0;
+  padding:0;
+  overflow:hidden;
+}
+</style>
