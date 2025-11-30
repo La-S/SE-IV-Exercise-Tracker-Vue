@@ -17,6 +17,7 @@ const darkNavyTheme = {
     drawer: '#111B2E',
     text: '#E2E8F0',
     border: '#1F2A44',
+    timer: '#7dd3fc',
   },
 }
 
