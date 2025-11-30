@@ -17,10 +17,6 @@ const router = useRouter();
 
 const athleteSearch = ref("");
 
-const teamSections = computed(() => [
-  { label: "Teams", type: "team", teams: teams.value },,
-]);
-
 const selectedTeamKey = reactive({ type: "team", id: teams.value[0]?.id ?? null });
 
 const getAthletesOnTeam = async () => {
@@ -35,7 +31,6 @@ const getAthletesOnTeam = async () => {
     selectedTeam.value.athletes = []
     response.data.forEach((athlete) =>{
       selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
-      selectedTeam.value.athletes.sort(athleteSort);
     })
   }
 };
@@ -86,9 +81,15 @@ function teamSort(a, b){
 }
 
 function athleteSort(a, b){
-  if (a.role ==="coach") return -1;
-  if (b.role ==="coach") return 1
-  if (a.firstName < b.firstName) return -1;
+  if (a.role ==="coach"){ 
+    if (b.role !== "coach"){
+      return -1;
+    }
+    if (a.firstName.toUpperCase() < b.firstName.toUpperCase()) return -1;
+    else return 1;
+  }
+  if (b.role === "coach") return 1; // first block handles a coach case
+  if (a.firstName.toUpperCase() < b.firstName.toUpperCase()) return -1;
   else return 1;
 }
 
@@ -219,6 +220,7 @@ const addAthletesToTeam = async () => {
     console.error("Failed to add athlete to team", error);
     addAthletesError.value = error?.response?.data?.message || "Unable to add the athletes to your team. Please check your connection and try again later.";
   }
+  getAthletesOnTeam();
 };
 
 const deleteTeam = async (team) => {
@@ -268,7 +270,7 @@ const viewAthleteInfo = (athlete) => {
    router.push({ path: `athlete-info/${athlete.id}`,  });
 }
 
-const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) => {return a.lastName > b.lastName}));
+const sortedAthletes = computed(() => selectedTeam.value.athletes.sort(athleteSort));
 const searchableAthletes = computed(() => {
   const term = athleteSearch.value.trim().toLowerCase();
   return availableAthletes.value.filter((athlete) => {
@@ -284,7 +286,7 @@ const searchableAthletes = computed(() => {
     if (athleteSearchable.indexOf(term) != -1) {
       return true;
     }
-  }).sort((a, b) => {return a.lastName > b.lastName});
+  }).sort(athleteSort);
 });
 
 </script>
