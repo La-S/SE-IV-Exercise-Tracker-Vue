@@ -3,9 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import apiClient from "../services/services";
 import { useRouter } from "vue-router";
 
-const yourTeams = ref([]);
-
-const otherTeams = ref([]);
+const teams = ref([]);
 
 const selectedTeam = ref(null);
 
@@ -19,24 +17,22 @@ const router = useRouter();
 
 const athleteSearch = ref("");
 
-const teamSections = computed(() => [
-  { label: "Your Teams", type: "team", teams: yourTeams.value },
-  { label: "Other Teams", type: "others", teams: otherTeams.value },
-]);
-
-const selectedTeamKey = reactive({ type: "team", id: yourTeams.value[0]?.id ?? null });
+const selectedTeamKey = reactive({ type: "team", id: teams.value[0]?.id ?? null });
 
 const getAthletesOnTeam = async () => {
   if (!selectedTeam) return;
-
-  const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
-  if (response.status != 200){
-    throw Error("Status not 200.")
+  let athleteArray = [];
+  if (selectedTeam.value){
+    const response = await apiClient.get(`team/${selectedTeam.value.id}/users`);
+    
+    if (response.status != 200){
+      throw Error("Status not 200.")
+    }
+    selectedTeam.value.athletes = []
+    response.data.forEach((athlete) =>{
+      selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email, role: athlete.role});
+    })
   }
-  selectedTeam.value.athletes = []
-  response.data.forEach((athlete) =>{
-    selectedTeam.value.athletes.push({id: athlete.id, firstName: athlete.first_name, lastName: athlete.last_name, email: athlete.email})
-  })
 };
 
 const getAllAthletes = async () => {
@@ -50,13 +46,12 @@ const getAllAthletes = async () => {
   })
 };
 
-const teamSelected = (type, teamId) => {
+const teamSelected = (teamId) => {
   if (!selectedTeamKey.id) {
     selectedTeam.value = null;
   }
-  const collection = type === "team" ? yourTeams.value : otherTeams.value;
+  const collection = teams.value;
   selectedTeamKey.id = teamId;
-  selectedTeamKey.type = type;
   selectedTeam.value = collection.find((team) => team.id === selectedTeamKey.id) ?? null;
 
   try {
@@ -70,11 +65,33 @@ const loadTeams = async () => {
   const response = await apiClient.get("team");
   const data = response.data;
   if (Array.isArray(data)) {
-    yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
+    teams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
+    sortTeams();
   } else {
-    yourTeams.value = [];
+    teams.value = [];
   }
 };
+
+function sortTeams(){
+  teams.value.sort(teamSort);
+}
+function teamSort(a, b){
+  if (a.name.toUpperCase() < b.name.toUpperCase()) return -1;
+  else return 1;
+}
+
+function athleteSort(a, b){
+  if (a.role ==="coach"){ 
+    if (b.role !== "coach"){
+      return -1;
+    }
+    if (a.firstName.toUpperCase() < b.firstName.toUpperCase()) return -1;
+    else return 1;
+  }
+  if (b.role === "coach") return 1; // first block handles a coach case
+  if (a.firstName.toUpperCase() < b.firstName.toUpperCase()) return -1;
+  else return 1;
+}
 
 onMounted(() => {
   loadTeams();
@@ -82,7 +99,7 @@ onMounted(() => {
 });
 
 watch(
-  () => [yourTeams.value.length, otherTeams.value.length],
+  () => [teams.value.length],
   () => {
     if (selectedTeamKey.id) {
       if (selectedTeam.value === null) {
@@ -90,9 +107,9 @@ watch(
       }
       return
     };
-    const defaultTeam = yourTeams.value[0] ?? otherTeams.value[0];
+    const defaultTeam = teams.value[0] ?? teams.value[0];
     if (defaultTeam) {
-      selectedTeamKey.type = yourTeams.value.find((team) => team.id === defaultTeam.id)
+      selectedTeamKey.type = teams.value.find((team) => team.id === defaultTeam.id)
         ? "team"
         : "others";
       selectedTeamKey.id = defaultTeam.id;
@@ -135,7 +152,7 @@ const createTeam = async function() {
       "name": response.data.name,
       "athletes": []
     }
-    yourTeams.value.push(createdTeam);
+    teams.value.push(createdTeam);
     resetNewTeam();
     newTeamDialog.value = false
     teamCreationError.value = null;
@@ -143,6 +160,7 @@ const createTeam = async function() {
     console.error("Failed to create exercise team", error);
     teamCreationError.value = error?.response?.data?.message || "Unable to create the Team. Please check the name or try again later.";
   }
+  sortTeams();
 };
 
 const updateTeam = async function() {
@@ -163,6 +181,7 @@ const updateTeam = async function() {
     console.error("Failed to update team", error);
     teamUpdateError.value = error?.response?.data?.message || "Unable to save the exercise. Please check the details and try again.";
   }
+  sortTeams();
 };
 
 function isAthleteOnTeam(athleteId) {
@@ -201,6 +220,7 @@ const addAthletesToTeam = async () => {
     console.error("Failed to add athlete to team", error);
     addAthletesError.value = error?.response?.data?.message || "Unable to add the athletes to your team. Please check your connection and try again later.";
   }
+  getAthletesOnTeam();
 };
 
 const deleteTeam = async (team) => {
@@ -209,20 +229,11 @@ const deleteTeam = async (team) => {
     if (response.status != 200) {
       throw Error("ERROR!")
     }
-    let isInYourTeams = yourTeams.value.find((findTeam) => { return findTeam.name == team.name; })
-    if (isInYourTeams) {
-      let idx = yourTeams.value.indexOf(isInYourTeams);
-      yourTeams.value.splice(idx, 1);
-      teamSelected('team', undefined);
-      selectedTeam.value = yourTeams.value.at(0);
-    }
-    let isInOtherTeams = otherTeams.value.find((findTeam) => { return findTeam.name == team.name; })
-    if (isInOtherTeams) {
-      let idx = otherTeams.value.indexOf(isInOtherTeams);
-      otherTeams.value.splice(idx, 1);
-      teamSelected('team', undefined);
-      selectedTeam.value = otherTeams.value.at(0);
-    }
+    let teamIndex = teams.value.find((findTeam) => { return findTeam.name == team.name; })
+    let idx = teams.value.indexOf(teamIndex);
+    teams.value.splice(idx, 1);
+    teamSelected('team', undefined);
+    selectedTeam.value = teams.value.at(0);
   } catch (error) {
     console.error(`Failed to delete plan ${team.id}`, error);
   }
@@ -259,11 +270,9 @@ const viewAthleteInfo = (athlete) => {
    router.push({ path: `athlete-info/${athlete.id}`,  });
 }
 
-const sortedAthletes = computed(() => selectedTeam.value.athletes.sort((a, b) => {return a.lastName > b.lastName}));
-
+const sortedAthletes = computed(() => selectedTeam.value.athletes.sort(athleteSort));
 const searchableAthletes = computed(() => {
   const term = athleteSearch.value.trim().toLowerCase();
-
   return availableAthletes.value.filter((athlete) => {
     if (selectedTeam.value.athletes.find((a) => {return a == athlete})) {
       return false;
@@ -277,7 +286,7 @@ const searchableAthletes = computed(() => {
     if (athleteSearchable.indexOf(term) != -1) {
       return true;
     }
-  }).sort((a, b) => {return a.lastName > b.lastName});
+  }).sort(athleteSort);
 });
 
 </script>
@@ -305,25 +314,23 @@ const searchableAthletes = computed(() => {
 
           <v-card-text class="flex-grow-1 overflow-y-auto pr-2">
             <v-list density="compact" nav>
-              <template v-for="section in teamSections" :key="section.type">
-                <span v-if="section?.type !== 'others' || section.teams.length > 0">
-                  <div class="text-uppercase font-weight-medium">
-                    {{ section.label }}
+                <span v-if="teams.length > 0">
+                  <div class="text-uppercase font-weight-medium">                    
+                    Teams
                   </div>
-                  <v-alert v-if="section.teams.length === 0" variant="tonal" type="info">
-                    You don't have any teams. Use the + button to get started.
+                  <v-alert v-if="teams.length === 0" variant="tonal" type="info">
+                    There are not any teams. Use the + button to create one.
                   </v-alert>
                   <v-list-item
-                    v-for="team in section.teams"
+                    v-for="team in teams"
                     :key="team.id"
-                    :active="selectedTeamKey.type === section.type && selectedTeamKey.id === team.id"
+                    :active="selectedTeamKey.id === team.id"
                     rounded
-                    @click="teamSelected(section.type, team.id);"
+                    @click="teamSelected(team.id);"
                   >
                     <v-list-item-title>{{ team.name }}</v-list-item-title>
                   </v-list-item>
                 </span>
-              </template>
             </v-list>
           </v-card-text>
         </v-card>
@@ -380,11 +387,11 @@ const searchableAthletes = computed(() => {
                     prepend-icon="mdi-plus"
                     @click="addAthletesToTeamDialog = true"
                   >
-                    Add Athlete
+                    Add User
                   </v-btn>
                 </div>
                 <v-alert v-if="!selectedTeam.athletes?.length" variant="tonal" type="info">
-                  No athletes on the team. Use the Add Athlete button to get started.
+                  No users on the team. Use the Add User button to get started.
                 </v-alert>
 
                 <v-expansion-panels v-else>
@@ -394,25 +401,16 @@ const searchableAthletes = computed(() => {
                   >
                     <v-expansion-panel-title>
                       <div class="d-flex flex-column">
-                        <span class="font-weight-medium">{{ athlete.firstName }} {{ athlete.lastName }}</span>
+                        <span class="font-weight-medium">{{ athlete.role === "coach" ? 'Coach ' + athlete.firstName : athlete.firstName }} {{ athlete.lastName }}</span>
                       </div>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
                       <v-btn
                         color="primary"
                         variant="text"
-                        @click="viewAthleteInfo(athlete)"
-                      >
-                        View Exercises
-                      </v-btn>
-                      <br/>
-                      <br/>
-                      <v-btn
-                        color="primary"
-                        variant="text"
                         @click="email(athlete.email)"
                       >
-                        Contact Athlete
+                        Contact User
                       </v-btn>
                       <br/>
                       <br/>
@@ -452,13 +450,13 @@ const searchableAthletes = computed(() => {
           <span>Select Athletes to add to '{{ selectedTeam.name }}'</span>
         </v-card-title>
         <v-card-text>
-          <v-row class="mb-3" dense>
+            <v-row class="mb-3" dense>
             <v-text-field
                 v-model="athleteSearch"
                 label="Search athletes"
                 prepend-inner-icon="mdi-magnify"
                 density="comfortable"
-              />
+            />
           </v-row>
           <v-list
             v-if="searchableAthletes.length > 0"
@@ -485,7 +483,7 @@ const searchableAthletes = computed(() => {
             </v-item-group>
           </v-list>
           <v-alert v-else type="info" variant="tonal">
-            No more athletes are available. Tell your athlete to create an account, or change your search term.
+            No more athletes are available. Tell your athlete to create an account or change your search term.
           </v-alert>
           <v-alert v-if="addAthletesError" type="error" variant="tonal">
            {{addAthletesError}}

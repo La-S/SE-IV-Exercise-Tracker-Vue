@@ -5,16 +5,21 @@ import apiClient from "../services/services";
 const users = ref([]);
 const totalUsers = ref(0);
 const search = ref('');
+const selectedUser = ref({
+  id: '',
+  firstName: '',
+  lastName: ''
+});
+const dialog = ref(false)
+const activator = ref(null)
 
-
-const selectedUser = ref(null);
 const headers = ref([
   {title: "id", align: "start", sortable: true, key:"id"},
   {title: "email", align: "end", sortable: true, key:"email"},
   {title: "First Name", align: "end", sortable: true, key:"firstName"},
   {title: "Last Name", align: "end", sortable: true, key:"lastName"},
   {title: "Role", align: "end", sortable: true, key:"role"},
-  {title: "Save Role Change", align:"start", key:"save"}
+  {title: "Actions", align:"start", key:"actions"}
 ])
 
 const loadUsers = async () => {
@@ -31,15 +36,34 @@ const loadUsers = async () => {
 
 onMounted(() => {
   loadUsers();
-});
+}); 
 
-const saveRole = (user) =>{
-  let userValues = user.columns;
+const saveRole = async (user) =>{
+  let userValues = user.raw;
   let id = userValues.id;
   let role = userValues.role;
   let body = {};
   body.role = role;
-  apiClient.put(`users/${id}/role`, body);
+  await apiClient.put(`users/${id}/role`, body);
+}
+
+const deleteUser = async () =>{
+  let id = selectedUser.value.id;
+  await apiClient.delete(`users/${id}`);
+  loadUsers();
+  dialog.value = false;
+}
+
+function updateSelectedUser(user){
+  let userValues = user.raw;
+  selectedUser.value.id = userValues.id;
+  selectedUser.value.firstName = userValues.firstName;
+  selectedUser.value.lastName = userValues.lastName;
+  console.log(selectedUser);
+  dialog.value = true;
+}
+const cancel = () => {
+  dialog.value = false;
 }
 
 </script>
@@ -74,36 +98,77 @@ const saveRole = (user) =>{
           ></v-combobox>
         </v-container>  
       </template>
-      <template v-slot:item.save="{ item }"> 
-        <v-container class="save-holder"> 
-          <v-btn class="save-btn" @click="saveRole(item)">Save</v-btn>
-        </v-container>  
+      <template v-slot:item.actions="{ item }"> 
+        <v-row class="save-holder"> 
+          <v-btn 
+            color="primary" 
+            variant="tonal"
+            class="save-btn" 
+            @click="saveRole(item)">
+            Save</v-btn>
+            <v-spacer></v-spacer>
+          <v-btn 
+            color="error" 
+            variant="tonal"
+            class="delete-btn" 
+            @click="updateSelectedUser(item)">
+            Delete</v-btn>
+        </v-row>  
       </template>
     </v-data-table>
 
   </v-container>
+  
+  <v-dialog v-model="dialog" max-width="500" scrim="black">
+    <v-card>
+      <v-card-text class="dialog-text">Are you sure you want to delete {{ selectedUser.firstName }} {{ selectedUser.lastName }}</v-card-text>
+      <v-row align="center" justify="center" class="dialog-row">
+        <v-btn color="error" 
+              class="delete-btn-dialog"
+              @click="deleteUser">Delete</v-btn>
+        <v-btn color = "primary"
+              variant = "tonal"
+              @click="cancel">Cancel</v-btn>
+    </v-row>
+    </v-card>
+  </v-dialog>
 </template>
 
 <style scoped>
+.dialog-text{
+  text-align:center;
+  margin-top:15px;
+  margin-bottom:30px;
+  font-weight: bold;
+}
+.dialog-row{
+  padding-bottom:20px;
+  margin-bottom:0px;
+}
 .h-100 {
   height: 100%;
 }
-
-.save-btn{
-  background-color: #1A2D10;
-  color: #58f707
+.delete-btn-dialog{
+  margin-right:20px;
 }
+
+.spacer{
+  width:5px;
+}
+
+
 .combobox-holder{
   max-width: 200px;
+  min-width: 150px;
   padding-right:0px;
   margin-right:0px;
-  margin-top:15px
+  margin-top:20px
 }
 .save-holder{
-  max-width: 150px;
   padding-left:0px;
   margin-left:0px;
-  margin-bottom:5px;
+  min-width:175px;
+  max-width:190px;
 }
 .overflow-y-auto {
   overflow-y: auto;

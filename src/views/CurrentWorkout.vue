@@ -1,29 +1,36 @@
 <template>
   <v-container class="pa-4 text-center">
-
-     <!-- Sticky Workout Timer (shows when workout is active and started) -->
-     <v-card 
-      v-if="activeWorkout && timerStarted"
-      class="pa-3 mb-4"
-      color="primary"
-      variant="tonal"
-      style="position: sticky; top: 0; z-index: 10;"
+    <v-card 
+  v-if="activeWorkout && timerStarted"
+  class="pa-3 mb-4"
+  color="primary"
+  
+  style="position: sticky; top: 80px; z-index: 10;"
+>
+  <div class="d-flex justify-space-between align-center">
+    <div>
+      <div class="text-caption">Timer</div>
+      <div class="text-h5 font-weight-bold">{{ formatTime(workoutTime) }}</div>
+    </div>
+    <v-btn
+      @click="toggleTimer"
+      :color="timerPaused ? 'warning' : 'menubarText'"
+      size="small"
+      variant="outlined"
     >
-      <div class="d-flex justify-space-between align-center">
-        <div>
-          <div class="text-caption">Timer</div>
-          <div class="text-h5 font-weight-bold">{{ formatTime(workoutTime) }}</div>
-        </div>
-        <v-btn
-          @click="toggleTimer"
-          :color="timerPaused ? 'warning' : 'success'"
-          size="small"
-          variant="outlined"
-        >
-          {{ timerPaused ? 'Resume' : 'Pause' }}
-        </v-btn>
-      </div>
-    </v-card>
+      {{ timerPaused ? 'Resume' : 'Pause' }}
+    </v-btn>
+  </div>
+  
+  <v-divider v-if="restActive" class="my-2"></v-divider>
+  
+  <div v-if="restActive" class="text-center">
+    <v-icon color="primary">mdi-timer-sand</v-icon>
+    <span class="ml-2 text-body-1 font-weight-medium">
+      Rest Time: {{ formatTime(restTime) }}
+    </span>
+  </div>
+</v-card>
 
     <template v-if="!activeWorkout && !allWorkoutsCompleted">
       <v-row justify="center" align="center" class="mt-6">
@@ -57,8 +64,8 @@
   <div class="date-text">{{ formatWorkoutDate(workout.expected_date) }}</div>
   <div class="text-caption mt-1">{{ workout.notes }}</div>
 </v-card>
-    <v-alert v-if="!weeklyWorkouts.length" type="info" variant="tonal">
-      No workouts assigned yet.
+    <v-alert v-if="!weeklyWorkouts.length" type="info" variant="tonal" color="primary">
+      No workouts assigned yet
     </v-alert>
   </template>
 </v-col>
@@ -81,7 +88,7 @@
           variant="tonal"
           size="small"
           class="ml-2 mb-3"
-          color="success"
+          color="primary"
           :disabled="timerStarted"
           @click="startWorkoutTimer"
         >
@@ -95,6 +102,7 @@
           type="info"
           variant="tonal"
           class="my-4"
+          color="primary"
         >
           <v-progress-circular indeterminate size="20" class="mr-2" />
           Loading exercises...
@@ -115,64 +123,66 @@
     class="mb-4"
   >
     <v-card class="pa-4 w-100" elevation="2" rounded="lg">
-
-      <!-- Exercise Title -->
       <h3 class="text-subtitle-1 font-weight-bold">
         {{ exercise.name }}
       </h3>
 
-      <!-- Muscle + Type -->
       <div class="text-caption mb-3">
         {{ formatLabel(exercise.type) }} • {{ formatLabel(exercise.muscleGroup) }}
       </div>
 
-      <!-- Notes -->
       <div v-if="exercise.notes" class="text-caption mb-2">
         Note: {{ exercise.notes }}
       </div>
 
-      <!-- REST TIMER -->
       <v-chip
         v-if="exercise.restTimer"
         size="small"
-        color="info"
+        color="primary"
         variant="tonal"
         class="mb-3"
+        
       >
         Rest: {{ exercise.restTimer }}s
       </v-chip>
 
-      <!-- CARDIO LAYOUT -->
       <template v-if="exercise.type === 'cardio'">
-        <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
-          <div class="font-weight-medium mb-1">Cardio Goal</div>
-          <div class="text-body-2 mb-2">
-            {{ exercise.goalMiles[0] }} miles  
-            <span v-if="exercise.goalPace[0]">
-              @ {{ exercise.goalPace[0] }} sec
-            </span>
-          </div>
+  <div
+    v-for="(goalMile, setIndex) in exercise.goalMiles"
+    :key="setIndex"
+  >
+    <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
+      <div class="font-weight-medium mb-1">Cardio Set {{ setIndex + 1 }}</div>
+      <div class="text-body-2 mb-2">
+        {{ exercise.goalMiles[setIndex] }} miles  
+        <span v-if="exercise.goalPace[setIndex]">
+          @ {{ exercise.goalPace[setIndex] }} mins
+        </span>
+      </div>
 
-          <v-text-field
-            v-model="exercise.actualMiles[0]"
-            label="Actual distance (miles)"
-            type="number"
-            dense
-            hide-details
-            class="mb-2"
-          />
+      <v-text-field
+        v-model="exercise.actualMiles[setIndex]"
+        label="Actual distance (miles)"
+        type="number"
+        dense
+        hide-details
+        class="mb-2"
+        :disabled="!timerStarted"
+        autocomplete="off"
+      />
 
-          <v-text-field
-            v-model="exercise.actualTime[0]"
-            label="Actual total time (sec)"
-            type="number"
-            dense
-            hide-details
-          />
-        </v-card>
-      </template>
-
-      <!-- STRENGTH LAYOUT: MOBILE FRIENDLY SET CARDS -->
+      <v-text-field
+        v-model="exercise.actualTime[setIndex]"
+        label="Actual total time (mins)"
+        type="number"
+        dense
+        hide-details
+        :disabled="!timerStarted"
+        autocomplete="off"
+      />
+    </v-card>
+  </div>
+</template>
       <template v-else>
   <div
     v-for="(set, setIndex) in exercise.sets"
@@ -183,12 +193,10 @@
       variant="tonal"
       rounded="md"
     >
-      <!-- Set Number -->
       <div class="font-weight-medium mb-1">
         Set {{ setIndex + 1 }}
       </div>
-
-      <!-- Goal Info -->
+      
       <div class="text-body-2 mb-2">
         Goal: {{ exercise.reps[setIndex] }} reps  
         <span v-if="exercise.weight[setIndex]">
@@ -196,33 +204,32 @@
         </span>
       </div>
 
-      <!-- Actual Reps Input -->
       <v-text-field
-        v-model="exercise.actualReps[setIndex]"
-        label="Actual reps"
-        type="number"
-        variant="outlined"
-        dense
-        hide-details
-        class="mb-2"
-      />
+  v-model="exercise.actualReps[setIndex]"
+  label="Actual reps"
+  type="number"
+  variant="outlined"
+  dense
+  hide-details
+  class="mb-2"
+  :disabled="!timerStarted"
+  autocomplete="off"
+/>
 
-      <!-- Actual Weight Input -->
-      <v-text-field
-        v-model="exercise.actualWeight[setIndex]"
-        label="Actual weight (lbs)"
-        type="number"
-        variant="outlined"
-        dense
-        hide-details
-      />
+<v-text-field
+  v-model="exercise.actualWeight[setIndex]"
+  label="Actual weight (lbs)"
+  type="number"
+  variant="outlined"
+  dense
+  hide-details
+  :disabled="!timerStarted"
+  autocomplete="off"
+/>
     </v-card>
     </div>
     </template>
 
-    
-
-      <!-- COMPLETED CHECKBOX -->
       <div class=" align-items-start">
  
         <v-checkbox
@@ -236,27 +243,21 @@
     </v-card>
   </v-list-item>
 </v-list>
-        <v-alert v-else type="info" variant="tonal" class="my-4">
+        <v-alert v-else type="info" variant="tonal" class="my-4" color="primary">
           No exercises assigned to this workout yet.
         </v-alert>
 
-        <div v-if="restActive" class="my-4">
-          <v-icon color="amber">mdi-timer-sand</v-icon>
-          <span class="ml-2 text-body-1">
-            Rest Time: {{ formatTime(restTime) }}
-          </span>
-        </div>
-
         <v-divider class="my-3"></v-divider>
 
-
-        <v-btn color="primary" block @click="completeWorkout" :to="{ name: 'athlete-homepage' }">
-          Complete Workout
-        </v-btn>
-        <v-divider class="my-3"></v-divider>
-        <v-btn color="error" block @click="showEndModal = true">
-          Cancel Workout
-        </v-btn>
+        <v-btn 
+  color="primary" 
+  block 
+  @click="completeWorkout" 
+  :to="{ name: 'athlete-homepage' }"
+  :disabled="currentExercises.length === 0 || !currentExercises.every(ex => ex.completed)"
+>
+  Complete Workout
+</v-btn>
       </v-card>
     </template>
 
@@ -413,10 +414,10 @@ async function fetchExercisesForWorkout(workoutId) {
           weight: sets.map(s => s.goal_weight || null),
           goalMiles: sets.map(s => s.goal_dist || null),
           goalPace: sets.map(s => s.goal_time || null),
-          actualMiles: sets.map(s => s.actual_dist || null),
-          actualWeight: sets.map(s => s.actual_weight || null),
-          actualTime: sets.map(s => s.actual_time || 0), // Default to 0
-          actualReps: sets.map(s => s.actual_reps || null),
+          actualMiles: sets.map(s => 0),
+          actualWeight: sets.map(s => 0),
+          actualTime: sets.map(s => 0), 
+          actualReps: sets.map(s => 0),
           mileTimes: "",
         };
       })
@@ -460,18 +461,11 @@ function startWorkoutTimer() {
 }
 
 function toggleTimer() {
-  if (timerPaused.value && restActive.value) {
-    clearInterval(restInterval);
-    restActive.value = false;
-  }
   timerPaused.value = !timerPaused.value;
 }
 
 function handleSetCompletion(exercise) {
   if (exercise.completed) {
-    if (workoutInterval && !timerPaused.value) {
-      timerPaused.value = true;
-    }
     startRestTimer(exercise.restTimer);
   }
 
@@ -491,8 +485,6 @@ async function completeWorkout() {
   timerPaused.value = false;
 
   await submitWorkout();
-
-  //showEndModal.value = true;
 }
 
 function startRestTimer(duration = 60) {
@@ -501,11 +493,14 @@ function startRestTimer(duration = 60) {
   restTime.value = duration;
 
   restInterval = setInterval(() => {
-    if (restTime.value > 0) restTime.value--;
-    else {
+    if (timerPaused.value) {
+      return;
+    }
+    if (restTime.value > 0) {
+      restTime.value--;
+    } else {
       clearInterval(restInterval);
       restActive.value = false;
-      timerPaused.value = false;
     }
   }, 1000);
 }
@@ -542,13 +537,13 @@ async function submitWorkout() {
       const sets = Array.isArray(setsResponse.data) ? setsResponse.data : [];
 
       for (let i = 0; i < sets.length; i++) {
-        await apiClient.put(`set/${sets[i].id}`, {
-          actualReps: exercise.actualReps[i],
-          actualWeight: exercise.actualWeight[i],
-          actualTime: exercise.actualTime[i],
-          actualDist: exercise.actualMiles[i],
-        });
-      }
+  await apiClient.put(`set/${sets[i].id}`, {
+    actualReps: exercise.actualReps[i],
+    actualWeight: exercise.actualWeight[i],
+    actualTime: exercise.type === 'cardio' ? exercise.actualTime[i] * 60 : exercise.actualTime[i],
+    actualDist: exercise.actualMiles[i],
+  });
+}
     }
 
     

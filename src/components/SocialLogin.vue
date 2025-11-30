@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import dummbellsImage from "../assets/dumbbells.jpg"
 import AuthServices from "../services/authServices";
 import Utils from "../config/utils.js";
 import { useRouter } from "vue-router";
@@ -9,6 +10,7 @@ const fName = ref("");
 const lName = ref("");
 const role = ref("");
 const user = ref({});
+const logoURL = ref("");
 
 const loginWithGoogle = () => {
   window.handleCredentialResponse = handleCredentialResponse;
@@ -48,6 +50,9 @@ const handleCredentialResponse = async (response) => {
 };
 
 onMounted(async () => {
+
+  logoURL.value = dummbellsImage;
+
   let user = Utils.getStore("user");
   console.log(user);
   if (user) {
@@ -80,9 +85,59 @@ function routeForRole(role){
 </script>
 
 <template>
-  <div class="signup-buttons">
-    <v-row justify="center">
-      <div display="flex" id="parent_id"></div>
-    </v-row>
-  </div>
+  <v-img :src="logoURL" align="center" cover="true">
+      <v-col align="center">
+        <v-card>
+          <div class="text-h4">Welcome to the OC Exercise Tracker!</div>
+          <div class="text-h6">The new way to manage workouts on campus</div>
+            <div class="text-h6">Sign in with Google below to get started!</div>
+          <div class="signup-buttons">
+            <v-row justify="center">
+              <div display="flex" id="parent_id"></div>
+            </v-row>
+          </div>
+        </v-card>
+      </v-col>
+    </v-img>
 </template>
+
+<style scoped>
+
+.v-img{
+  height:calc(100vh - 56px); /* 56 is toolbar height*/
+  padding-bottom:0px;
+  margin-bottom:0px;
+}
+.v-container{
+  margin:0;
+  padding:0;
+}
+
+@media (max-width: 1199px) {
+  .v-card{
+    min-height:50vh;
+    min-width:85vw;
+  }
+}
+@media (min-width: 1200px){
+  .v-card{
+    min-height: 300px;
+    max-width: 50vw;
+  }
+}
+.text-h4{
+  margin-top:20px;
+}
+.text-h6{
+  margin-top:20px;
+}
+.signup-buttons{
+  padding-top:40px;
+}
+
+.v-card{
+  opacity:100%;
+  margin-top:100px;
+}
+</style>
+
