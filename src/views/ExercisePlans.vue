@@ -221,21 +221,6 @@ watch(
   }
 );
 
-const shouldOpenNewPlanDialog = (value) =>
-  value === "true" || value === "1" || value === true;
-
-watch(
-  () => route.query.newPlan,
-  async (value) => {
-    if (shouldOpenNewPlanDialog(value) && !newPlanDialog.value) {
-      await nextTick();
-      newPlanDialog.value = true;
-      clearNewPlanQueryFlag();
-    }
-  },
-  { immediate: true }
-);
-
 const setTemplateLookup = () => {
   templateLookup = new Map(availableExercises.value.map((exercise) => [exercise.id, exercise]));
 };
