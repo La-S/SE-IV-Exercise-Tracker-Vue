@@ -225,45 +225,28 @@ getExercises()
           <span>{{ dialogWorkout.focusArea}}</span>
         </v-card-title>
         <v-card-text>
-          <v-text-field
-            :disabled="dialogWorkoutIsCompleted"
-            v-model="dialogWorkout.focusArea"
-            label="Focus Area"
-            prepend-inner-icon="mdi-crosshairs-gps"
-            required
-          />
-          <v-text-field
-            :disabled="dialogWorkoutIsCompleted"
-            v-model="dialogWorkout.notes"
-            label="Notes"
-            prepend-inner-icon="mdi-note"
-            required
-          />
-          <!-- ugh gotta format these properly...-->
-          <v-text-field
-          :disabled="dialogWorkoutIsCompleted" 
-            v-model="dialogWorkout.expectedDate"
-            label="Expected date"
-            type="date"
-            prepend-inner-icon="mdi-calendar-clock"
-            required
-          />
-          <v-text-field
-            :disabled="dialogWorkoutIsCompleted"
-            v-model="dialogWorkout.date"
-            label="Completion date"
-            type="date"
-            prepend-inner-icon="mdi-calendar-clock"
-            required
-          />
-          <v-text-field
-            :disabled="dialogWorkoutIsCompleted"
-            v-model="dialogWorkout.totalTime"
-            label="Elapsed Workout Time"
-            prepend-inner-icon="mdi-timer"
-            suffix="minutes"
-            required
-          />
+          <div v-if="dialogWorkout.notes">
+            <span>Notes: {{ dialogWorkout.notes}}</span>
+          </div>
+          
+          <div v-if="dialogWorkout.expectedDate">
+            <span>Expected Completion Date: {{ getPrettyDate(dialogWorkout.expectedDate)}}</span>
+          </div>
+          <div v-if="!dialogWorkout.date">
+            <span style="color: red;">Not completed yet</span>
+          </div>
+          <div v-else-if="dayjs(dialogWorkout.expectedDate).isSame(dayjs(dialogWorkout.date), 'day')">
+            <span>Completed on time!</span>
+          </div>
+          <div v-else-if="dayjs(dialogWorkout.expectedDate).isBefore(dayjs(dialogWorkout.date))">
+            <span style="color: red;">Completed Late! ({{ getPrettyDate(dialogWorkout.date) }})</span>
+          </div>
+          <div v-else>
+            <span style="color: orange;">Completed Early! ({{ getPrettyDate(dialogWorkout.date) }})</span>
+          </div>
+          <div v-if="dialogWorkout.date && dialogWorkout.totalTime">
+            <span>Total Workout Time: {{ parseInt(dialogWorkout.totalTime / 60, 10)}} mins</span>
+          </div>
         </v-card-text>
 
         <v-alert
@@ -278,24 +261,19 @@ getExercises()
         <div v-else-if="exercisesLoading" class="d-flex justify-center py-6">
           <v-progress-circular indeterminate color="primary" />
         </div>
-        <exercise-item v-else v-for="exercise in dialogExercises"
+        <v-expansion-panels v-else>
+          <exercise-item v-for="exercise in dialogExercises"
             :key="exercise.assignmentId || exercise.templateId"
             :exercise="exercise"
-            :mutation-pending="false"
-            @edit="openPlanExerciseEditor(selectedPlan.id, exercise)"
-            @edit-sets="openPlanExerciseEditor(selectedPlan.id, exercise)"
-            @remove="removeExerciseFromPlan(exercise.assignmentId)"
+            :mutation-pending="true"
+            :show-mutation-options="false"
+            :show-actual-results="true"
           />
+        </v-expansion-panels>
         
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="shouldshowWorkoutDialog = false">Done</v-btn>
-          <!-- <v-btn
-            color="primary"
-            @click=""
-          >
-            Add to Team
-          </v-btn> -->
         </v-card-actions>
       </v-card>
       
