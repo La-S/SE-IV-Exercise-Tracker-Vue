@@ -22,7 +22,6 @@ async function getAthleteInfo() {
     throw Error("status not 200.")
   }
   athleteInfo.value = {id: response.data.id, firstName: response.data.first_name, lastName: response.data.last_name, email: response.data.email}
-  console.log(athleteInfo.value)
 }
 
 async function getExercises() {
@@ -33,10 +32,8 @@ async function getExercises() {
   }
   exercises.value = [];
   for (const exercise of response.data) {
-    console.log(exercise)
     exercises.value.push({notes: exercise.notes, expectedDate:  new Date(Date.parse(exercise.expected_date)), id: exercise.id, focusArea: exercise.focus_area, date: exercise.date, totalTime: exercise.total_time })
   }
-  console.log('data', response.data)
 }
 
 function getPrettyDate(dateStr) {
@@ -103,9 +100,6 @@ async function fetchExercisesForWorkout(workoutId) {
         };
       })
     );
-
-    console.log(mappedExercises)
-
     dialogExercises.value = mappedExercises;
 
   } catch (err) {
@@ -127,12 +121,10 @@ async function fetchSetsForExercise(exerciseId) {
 }
 
 function showWorkout(workoutId) {
-  console.log("should be showing...")
   fetchExercisesForWorkout(workoutId);
   dialogWorkout = exercises.value.find((workout) => {return workout.id == workoutId});
   dialogWorkoutIsCompleted.value = dialogWorkout.date != null;
   shouldshowWorkoutDialog.value = true;
-  console.log(dialogWorkout)
 }
 
 getAthleteInfo()
