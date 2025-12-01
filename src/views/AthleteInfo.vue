@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import apiClient from '../services/services';
 import dayjs from 'dayjs';
 import ExerciseItem from "../components/ExerciseItem.vue";
+import { parseToLocalDate } from '../services/date';
 
 const route = useRoute();
 let athleteId = route.params.id
@@ -32,7 +33,7 @@ async function getExercises() {
   }
   exercises.value = [];
   for (const exercise of response.data) {
-    exercises.value.push({notes: exercise.notes, expectedDate:  new Date(Date.parse(exercise.expected_date)), id: exercise.id, focusArea: exercise.focus_area, date: exercise.date, totalTime: exercise.total_time })
+       exercises.value.push({notes: exercise.notes, expectedDate: parseToLocalDate(exercise.expected_date), id: exercise.id, focusArea: exercise.focus_area, date: exercise.date, totalTime: exercise.total_time })
   }
 }
 
