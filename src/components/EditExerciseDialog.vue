@@ -86,8 +86,9 @@ const submit = () => {
             prepend-inner-icon = "mdi-format-list-bulleted"
             :disabled = "form.source === 'plan'"
           />
-          <v-text-field
+          <v-select
             v-model = "form.muscleGroup"
+            :items = "['Bicep','Tricep','Forearm','Shoulder','Back','Chest','Core','Quad','Hamstring','Calf','Glute','Other']"
             label = "Muscle group"
             prepend-inner-icon = "mdi-dna"
             :disabled = "form.source === 'plan'"
