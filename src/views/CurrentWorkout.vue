@@ -165,26 +165,6 @@
       variant="outlined"
       hide-details
     >
-      <template #append-inner>
-        <v-icon
-          class="mr-1"
-          size="18"
-          color="primary"
-          style="cursor: pointer"
-          @click.stop="saveExerciseNote(exercise)"
-        >
-          mdi-check
-        </v-icon>
-
-        <v-icon
-          size="18"
-          color="error"
-          style="cursor: pointer"
-          @click.stop="cancelEditNote(exercise)"
-        >
-          mdi-close
-        </v-icon>
-      </template>
     </v-text-field>
   </div>
 </div>
@@ -519,10 +499,20 @@ function toggleTimer() {
   timerPaused.value = !timerPaused.value;
 }
 
-function handleSetCompletion(exercise) {
+async function handleSetCompletion(exercise) {
   if (exercise.completed) {
     startRestTimer(exercise.restTimer);
+
   }
+
+  try {
+    await apiClient.put(`exercise/${exercise.id}`, {
+      notes: exercise.notes,  
+    });
+  } catch (err) {
+    console.error("Error updating exercise:", err);
+  }
+
 
   const allCompleted = currentExercises.value.every(ex => ex.completed);
   if (allCompleted) {
@@ -607,24 +597,6 @@ async function submitWorkout() {
     console.error("Error submitting workout:", err);
     alert("Failed to save workout. Please try again.");
   }
-}
-
-async function saveExerciseNote(exercise) {
-  try {
-    await apiClient.put(`exercise/${exercise.id}`, {
-      notes: exercise.notes
-    });
-    exercise.isEditingNote = false;
-    exercise.originalNotes = exercise.notes;
-  } catch (err) {
-    console.error("Error saving exercise note:", err);
-    alert("Failed to save note. Please try again.");
-  }
-}
-
-function cancelEditNote(exercise) {
-  exercise.notes = exercise.originalNotes || exercise.notes;
-  exercise.isEditingNote = false;
 }
 
 function confirmEndWorkout() {
