@@ -458,8 +458,12 @@ const formatSetsSummaryLines = (sets, showActual) => {
         )
       : "";
     const label = sets.length > 1 ? `Set ${index + 1}` : "Set";
-    if (goal) lines.push(`${label} Goal: ${goal}`);
-    if (actual) lines.push(`${label} Actual: ${actual}`);
+    const parts = [];
+    if (goal) parts.push(`Goal: ${goal}`);
+    if (actual) parts.push(`Actual: ${actual}`);
+    if (parts.length) {
+      lines.push(`${label}: ${parts.join(" • ")}`);
+    }
   });
   return lines;
 };
