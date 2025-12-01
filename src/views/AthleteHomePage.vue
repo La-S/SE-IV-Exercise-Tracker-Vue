@@ -31,29 +31,10 @@
         >
           Go To Workouts
         </v-btn>
-        <v-card class="pa-3 elevation-2" rounded="xl">
-          <v-card-title class="text-subtitle-1 font-weight-bold">
-            Workouts Completed This Week
-          </v-card-title>
-          <v-card-text class="pt-2">
-            <div class="d-flex flex-column align-center text-center">
-              <div class="text-body-2 mb-2">
-                {{ completedThisWeek }} / {{ totalThisWeek }} Workouts
-              </div>
-              <v-progress-linear
-                :model-value="weeklyCompletionRate"
-                height="10"
-                color="primary"
-                rounded
-                striped
-                class="w-100"
-              ></v-progress-linear>
-              <div class="text-caption mt-2 grey--text">
-                {{ weeklyCompletionRate }}% Complete this week
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
+        <workout-completion-card
+          :completedWorkouts = completedThisWeek
+          :totalWorkouts = totalThisWeek
+        />
       </v-col>
     </v-row>
 
@@ -120,6 +101,7 @@ import { ref, computed, onMounted } from "vue";
 import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
 import dayjs from 'dayjs';
+import WorkoutCompletionCard from "../components/WorkoutCompletionCard.vue";
 
 const completedThisWeek = ref(0);
 const totalThisWeek = ref(0);
