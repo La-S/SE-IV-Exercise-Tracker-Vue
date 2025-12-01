@@ -120,6 +120,7 @@ import { ref, computed, onMounted } from "vue";
 import Utils from "../config/utils.js";
 import dayjs from 'dayjs';
 import apiClient from "../services/apiService";
+import { parseToLocalDate } from "../services/date";
 
 const completedThisWeek = ref(0);
 const totalThisWeek = ref(0);
@@ -187,7 +188,7 @@ const fetchWeeklyStats = async (userId) => {
 
     const thisWeekWorkouts = workouts.filter((workout) => {
       if (!workout.expected_date) return false;
-      const workoutDate = new Date(workout.expected_date);
+      const workoutDate = parseToLocalDate(workout.expected_date);
       return workoutDate >= startOfWeek && workoutDate < endOfWeek;
     });
 
