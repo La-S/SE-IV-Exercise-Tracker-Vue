@@ -1,15 +1,15 @@
 <script setup>
 import { computed } from 'vue';
 
-    const props = defineProps({
-        completedWorkouts: { type: Number, default: 0 },
-        totalWorkouts: { type: Number, default: 0 },
-    });
+const props = defineProps({
+    completedWorkouts: { type: Number, default: 0 },
+    totalWorkouts: { type: Number, default: 0 },
+});
 
-    let weeklyCompletionRate = computed(() => {
-        if (props.totalWorkouts === 0) return 0;
-        return parseInt((props.completedWorkouts/props.totalWorkouts)*100, 10);
-    })
+let weeklyCompletionRate = computed(() => {
+    if (props.totalWorkouts === 0) return 0;
+    return parseInt((props.completedWorkouts/props.totalWorkouts)*100, 10);
+})
 </script>
 
 <template>
