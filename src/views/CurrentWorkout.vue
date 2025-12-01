@@ -80,6 +80,7 @@
           </span>
         </v-card-title>
 
+        <!-- This is the coach's notes, non editable -->
         <v-card-subtitle v-if="activeWorkout.notes" class="text-center">
           {{ activeWorkout.notes }}
         </v-card-subtitle>
@@ -131,10 +132,62 @@
         {{ formatLabel(exercise.type) }} • {{ formatLabel(exercise.muscleGroup) }}
       </div>
 
-      <div v-if="exercise.notes" class="text-caption mb-2">
-        Note: {{ exercise.notes }}
-      </div>
+      <!-- Editable notes for the athlete -->
+      <div class="mb-2">
 
+  <div v-if="!exercise.isEditingNote" class="d-flex align-items-center">
+
+    <div class="d-flex align-center mr-1" style="gap: 4px;">
+  <span class="text-caption">
+    Note: {{ exercise.notes || '' }}
+  </span>
+
+  <v-btn
+    icon
+    size="x-small"
+    variant="text"
+    color="primary"
+    @click="exercise.isEditingNote = true"
+    :disabled="!timerStarted"
+    class="pa-0"
+    style="height: 20px; width: 20px; margin-top: -1px;"
+  >
+    <v-icon size="16">mdi-pencil</v-icon>
+  </v-btn>
+</div>
+  </div>
+
+  <div v-else>
+    <v-text-field
+      v-model="exercise.notes"
+      label="Note"
+      density="compact"
+      variant="outlined"
+      hide-details
+    >
+      <template #append-inner>
+        <v-icon
+          class="mr-1"
+          size="18"
+          color="primary"
+          style="cursor: pointer"
+          @click.stop="saveExerciseNote(exercise)"
+        >
+          mdi-check
+        </v-icon>
+
+        <v-icon
+          size="18"
+          color="error"
+          style="cursor: pointer"
+          @click.stop="cancelEditNote(exercise)"
+        >
+          mdi-close
+        </v-icon>
+      </template>
+    </v-text-field>
+  </div>
+</div>
       <v-chip
         v-if="exercise.restTimer"
         size="small"
@@ -407,6 +460,8 @@ async function fetchExercisesForWorkout(workoutId) {
           type: exercise.exerciseTemplate?.type || "other",
           muscleGroup: exercise.exerciseTemplate?.muscle_group || "other",
           notes: exercise.notes || "",
+          originalNotes: exercise.notes || "",
+          isEditingNote: false,
           restTimer: exercise.rest_timer || 30,
           completed: false,
           sets: sets.map(s => s.goal_reps || 0),
@@ -554,6 +609,23 @@ async function submitWorkout() {
   }
 }
 
+async function saveExerciseNote(exercise) {
+  try {
+    await apiClient.put(`exercise/${exercise.id}`, {
+      notes: exercise.notes
+    });
+    exercise.isEditingNote = false;
+    exercise.originalNotes = exercise.notes;
+  } catch (err) {
+    console.error("Error saving exercise note:", err);
+    alert("Failed to save note. Please try again.");
+  }
+}
+
+function cancelEditNote(exercise) {
+  exercise.notes = exercise.originalNotes || exercise.notes;
+  exercise.isEditingNote = false;
+}
 
 function confirmEndWorkout() {
   showEndModal.value = false;
