@@ -285,9 +285,9 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
-import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
 import { useRouter } from "vue-router";
+import apiClient from "../services/apiService";
 import { parseToLocalDate } from '../services/date';
 
 const router = useRouter();

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import apiClient from "../services/services";
+import apiClient from "../services/apiService";
+import networkService from "../services/networkService";
 
 const users = ref([]);
 const totalUsers = ref(0);
@@ -23,15 +24,9 @@ const headers = ref([
 ])
 
 const loadUsers = async () => {
-  const response = await apiClient.get("users");
-  const data = response.data;
-  if (Array.isArray(data)) {
-    users.value = data.map(
-      (template) =>  {return {id: template.id, firstName: template.first_name, lastName: template.last_name, email: template.email, role: template.role} });
-  } else {
-    users.value = [];
-  }
-  totalUsers.value = users.length
+  let allUsers = await networkService.getAllUsers();
+  users.value = allUsers;
+  totalUsers.value = allUsers.length;
 };
 
 onMounted(() => {

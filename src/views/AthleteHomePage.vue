@@ -117,9 +117,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
 import dayjs from 'dayjs';
+import apiClient from "../services/apiService";
 import { parseToLocalDate } from "../services/date";
 
 const completedThisWeek = ref(0);

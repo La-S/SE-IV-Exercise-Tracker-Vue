@@ -3,9 +3,9 @@ import Utils from "../config/utils.js";
 import AuthServices from "./authServices.js";
 import Router from "../router.js";
 
-let baseurl = import.meta.env.VITE_API_BASE_URL || "";
+let baseurl = (import.meta as any).env.VITE_API_BASE_URL || "";
 if (!baseurl) {
-  if (import.meta.env.DEV) {
+  if ((import.meta as any).env.DEV) {
     baseurl = "http://localhost:3123/tracker-t3";
   } else {
     baseurl = "/tracker-t3";

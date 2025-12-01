@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
-import apiClient from '../services/services';
+import apiClient from '../services/apiService';
 import dayjs from 'dayjs';
 import ExerciseItem from "../components/ExerciseItem.vue";
 import { parseToLocalDate } from '../services/date';

@@ -1,8 +1,9 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import apiClient from "../services/services.js";
 import ExerciseItem from "../components/ExerciseItem.vue";
+import apiClient from "../services/apiService";
+import networkService from "../services/networkService";
 import PlanListPanel from "../components/PlanListPanel.vue";
 import PlanFormDialog from "../components/PlanFormDialog.vue";
 import AssignToTeamsPanel from "../components/AssignToTeamsPanel.vue";
@@ -312,19 +313,19 @@ const loadPlans = async () => {
       ? apiClient.get(`workout/user/${userContext.coachId}`)
       : apiClient.get("workout");
 
-    const [workoutResponse, exerciseResponse, templateResponse, setResponse, teamResponse] = await Promise.all([
+    const [workoutResponse, exerciseResponse, templateResponse, setResponse, allTeams] = await Promise.all([
       workoutRequest,
       apiClient.get("exercise"),
       apiClient.get("exerciseTemplate"),
       apiClient.get("set"),
-      apiClient.get("team"),
+      networkService.getAllTeams(),
     ]);
 
     const templates = Array.isArray(templateResponse.data) ? templateResponse.data : [];
     availableExercises.value = templates.map(mapTemplateToExercise);
     setTemplateLookup();
 
-    teams.value = Array.isArray(teamResponse.data) ? teamResponse.data : [];
+    teams.value = allTeams;
 
     const workouts = Array.isArray(workoutResponse.data) ? workoutResponse.data : [];
     const assignments = Array.isArray(exerciseResponse.data) ? exerciseResponse.data : [];
