@@ -22,7 +22,7 @@ const userId = storedUser?.id
 
 const navItems = [
   { label: "Dashboard", name: "dashboard" },
-  { label: "Exercise Plans", name: "exercise-plans" },
+  { label: "Workout Plans", name: "exercise-plans" },
   { label: "Manage Teams", name: "teams" },
 ];
 

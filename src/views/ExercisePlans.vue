@@ -147,6 +147,16 @@ const parseNumericId = (value) => {
   return Number.isFinite(numberValue) ? numberValue : null;
 };
 
+const matchesId = (candidate, target) => {
+  if (candidate === null || candidate === undefined || target === null || target === undefined) {
+    return false;
+  }
+  if (typeof target === "number") {
+    return Number(candidate) === target;
+  }
+  return String(candidate) === String(target);
+};
+
 
 const resolveUserContext = () => {
   const stored = Utils.getStore("user") || {};
@@ -324,7 +334,12 @@ const loadPlans = async () => {
     availableExercises.value = templates.map(mapTemplateToExercise);
     setTemplateLookup();
 
-    teams.value = Array.isArray(teamResponse.data) ? teamResponse.data : [];
+    const rawTeams = Array.isArray(teamResponse.data) ? teamResponse.data : [];
+    if (Number.isFinite(userContext.coachId)) {
+      teams.value = await filterTeamsByCoach(rawTeams, userContext.coachId);
+    } else {
+      teams.value = rawTeams;
+    }
 
     const workouts = Array.isArray(workoutResponse.data) ? workoutResponse.data : [];
     const assignments = Array.isArray(exerciseResponse.data) ? exerciseResponse.data : [];
@@ -372,6 +387,31 @@ const loadPlans = async () => {
     exercisesLoading.value = false;
     teamsLoading.value = false;
   }
+};
+
+const fetchTeamUsers = async (teamId) => {
+  const response = await apiClient.get(`team/${teamId}/users`);
+  const users = Array.isArray(response.data) ? response.data : [];
+  return users;
+};
+
+const filterTeamsByCoach = async (teamsList, coachId) => {
+  const results = await Promise.all(
+    teamsList.map(async (team) => {
+      try {
+        const users = await fetchTeamUsers(team.id);
+        const hasCoach = users.some((member) =>
+          matchesId(member.id ?? member.user_id ?? member.userId, coachId)
+        );
+        return hasCoach ? team : null;
+      } catch (error) {
+        console.error(`Failed to load members for team ${team.id}`, error);
+        throw error;
+      }
+    })
+  );
+
+  return results.filter(Boolean);
 };
 
 const clearNewPlanQueryFlag = () => {
