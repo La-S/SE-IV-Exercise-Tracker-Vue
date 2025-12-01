@@ -288,6 +288,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
 import { useRouter } from "vue-router";
+import { parseToLocalDate } from '../services/date';
 
 const router = useRouter();
 
@@ -381,7 +382,7 @@ function filterThisWeeksWorkouts() {
   weeklyWorkouts.value = backendWorkouts.value.filter(workout => {
     if (!workout.expected_date) return false;
     if (workout.date != null) return false; 
-    const workoutDate = new Date(workout.expected_date);
+    const workoutDate = parseToLocalDate(workout.expected_date);
     return workoutDate >= startOfWeek && workoutDate < endOfWeek;
   });
 }
@@ -513,7 +514,7 @@ function formatTime(seconds) {
 
 function formatWorkoutDate(dateString) {
   if (!dateString) return "No date";
-  const d = new Date(dateString);
+  const d = parseToLocalDate(dateString);
   const month = (d.getMonth() + 1).toString().padStart(2, "0");
   const day = d.getDate().toString().padStart(2, "0");
   const year = d.getFullYear();
