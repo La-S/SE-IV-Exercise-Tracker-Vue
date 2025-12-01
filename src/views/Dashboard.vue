@@ -98,15 +98,24 @@ const coachWorkouts = computed(() => {
   );
 });
 
+const teamScopedWorkouts = computed(() => {
+  if (selectedTeamId.value === "all") return coachWorkouts.value;
+  const members = teamMembersCache.get(selectedTeamId.value) || [];
+  if (!members.length) return [];
+  return coachWorkouts.value.filter((workout) =>
+    members.some((memberId) => matchesId(memberId, workout.athleteId))
+  );
+});
+
 const startOfToday = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
 };
 
-const hasWorkouts = computed(() => coachWorkouts.value.length > 0);
+const hasWorkouts = computed(() => teamScopedWorkouts.value.length > 0);
 const workoutsWithoutSchedule = computed(() =>
-  coachWorkouts.value.filter(
+  teamScopedWorkouts.value.filter(
     (workout) => workout.parentId && !workout.expectedDate && !workout.completedOn
   ).length
 );
@@ -129,7 +138,7 @@ const weeklyWorkload = computed(() => {
     };
   });
 
-  coachWorkouts.value.forEach((workout) => {
+  teamScopedWorkouts.value.forEach((workout) => {
     if (!workout.expectedDate) return;
     const compare = new Date(workout.expectedDate);
     compare.setHours(0, 0, 0, 0);
@@ -153,7 +162,7 @@ const weeklyWorkload = computed(() => {
 
 const upcomingAssignments = computed(() => {
   const today = startOfToday();
-  return coachWorkouts.value
+  return teamScopedWorkouts.value
     .filter(
       (workout) =>
         workout.expectedDate &&
@@ -174,11 +183,11 @@ const upcomingAssignments = computed(() => {
 });
 
 const recentlyCompleted = computed(() =>
-  coachWorkouts.value
+  teamScopedWorkouts.value
     .filter((workout) => workout.completedOn && workout.parentId)
     .map((workout) => {
       const sourcePlan = workout.parentId
-        ? coachWorkouts.value.find((plan) => plan.id === workout.parentId)
+        ? teamScopedWorkouts.value.find((plan) => plan.id === workout.parentId)
         : workout;
       return {
         ...workout,
@@ -255,6 +264,30 @@ const templateNameCache = new Map();
 const teamListCache = ref([]);
 const teamMembersCache = new Map();
 const athleteTeamsCache = new Map();
+const selectedTeamId = ref("all");
+const teamsLoading = ref(false);
+
+const coachTeams = computed(() => {
+  if (!teamListCache.value.length) return [];
+  const coachId = resolvedCoachId.value;
+  if (!coachId) return [];
+  return teamListCache.value.filter((team) => {
+    const members = teamMembersCache.get(team.id) || [];
+    return members.some((memberId) => matchesId(memberId, coachId));
+  });
+});
+
+const teamFilterOptions = computed(() => {
+  const options = [{ label: "All teams", value: "all" }];
+  const teams = coachTeams.value;
+  if (!teams.length) return options;
+  return options.concat(
+    teams.map((team) => ({
+      label: team.name ?? `Team ${team.id}`,
+      value: team.id,
+    }))
+  );
+});
 
 const resetAssignmentDetails = () => {
   assignmentDetails.value = null;
@@ -331,18 +364,12 @@ const loadTeamNamesForAthlete = async (athleteId) => {
     return athleteTeamsCache.get(athleteId);
   }
   await ensureTeamsLoaded();
+  await ensureAllTeamMembersLoaded();
   const teamNames = [];
   await Promise.all(
     teamListCache.value.map(async (team) => {
       try {
-        let members = teamMembersCache.get(team.id);
-        if (!members) {
-          const resp = await apiClient.get(`team/${team.id}/users`);
-          members = Array.isArray(resp.data)
-            ? resp.data.map((member) => member.id ?? member.user_id ?? member.userId)
-            : [];
-          teamMembersCache.set(team.id, members);
-        }
+        let members = teamMembersCache.get(team.id) || [];
         if (members.some((memberId) => matchesId(memberId, athleteId))) {
           teamNames.push(team.name ?? `Team ${team.id}`);
         }
@@ -355,10 +382,36 @@ const loadTeamNamesForAthlete = async (athleteId) => {
   return teamNames;
 };
 
+const ensureAllTeamMembersLoaded = async () => {
+  if (teamMembersCache.size && teamMembersCache.size === teamListCache.value.length) {
+    return;
+  }
+  teamsLoading.value = true;
+  try {
+    await ensureTeamsLoaded();
+    await Promise.all(
+      teamListCache.value.map(async (team) => {
+        if (teamMembersCache.has(team.id)) return;
+        const resp = await apiClient.get(`team/${team.id}/users`);
+        const members = Array.isArray(resp.data)
+          ? resp.data.map((member) => member.id ?? member.user_id ?? member.userId)
+          : [];
+        teamMembersCache.set(team.id, members);
+      })
+    );
+  } catch (error) {
+    console.error("Failed to load team members", error);
+  } finally {
+    teamsLoading.value = false;
+  }
+};
+
 const loadWorkouts = async () => {
   loading.value = true;
   loadError.value = "";
   try {
+    await ensureTeamsLoaded();
+    await ensureAllTeamMembersLoaded();
     const response = await apiClient.get("workout");
     const data = Array.isArray(response.data) ? response.data : [];
     workouts.value = data;
@@ -483,7 +536,7 @@ const formatSetMetrics = (reps, weight, time, dist, distUnits) => {
 const assignmentStatusCounts = computed(() => {
   const counts = { upcoming: 0, completed: 0, overdue: 0 };
   const today = startOfToday();
-  coachWorkouts.value.forEach((workout) => {
+  teamScopedWorkouts.value.forEach((workout) => {
     if (workout.completedOn) {
       counts.completed += 1;
     } else if (!workout.expectedDate) {
@@ -554,6 +607,21 @@ onMounted(() => {
     </div>
 
     <div v-else>
+      <v-row class="mb-2" dense>
+        <v-col cols="12" md="4" lg="3">
+          <v-select
+            v-model="selectedTeamId"
+            :items="teamFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Filter by team"
+            density="compact"
+            variant="outlined"
+            :loading="teamsLoading"
+            hide-details
+          />
+        </v-col>
+      </v-row>
       <v-row class="mb-4" dense>
         <v-col cols="12" md="8" lg="7">
           <v-card class="pa-4 chart-card" elevation="1">
