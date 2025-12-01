@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from "vue";
-
 const props = defineProps({
   sets: {
     type: Array,

@@ -3,14 +3,18 @@ import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import apiClient from '../services/apiService';
 import dayjs from 'dayjs';
+import ExerciseItem from "../components/ExerciseItem.vue";
 
 const route = useRoute();
 let athleteId = route.params.id
 let athleteInfo = ref(null)
 let exercises = ref([])
-let shouldShowExerciseDialog = ref(false)
-let dialogExercise = ref(null)
-let dialogExerciseIsCompleted = ref(false)
+let shouldshowWorkoutDialog = ref(false)
+let dialogWorkout = ref(null)
+let dialogExercises = ref([])
+let dialogWorkoutIsCompleted = ref(false)
+let exercisesLoading = ref(false)
+let exerciseLoadError = ref(null)
 
 async function getAthleteInfo() {
   const response = await apiClient.get(`users/${athleteId}`);
@@ -18,21 +22,18 @@ async function getAthleteInfo() {
     throw Error("status not 200.")
   }
   athleteInfo.value = {id: response.data.id, firstName: response.data.first_name, lastName: response.data.last_name, email: response.data.email}
-  console.log(athleteInfo.value)
 }
 
 async function getExercises() {
-  const body = {"startDate": dayjs().subtract(7, 'day').toISOString(), "endDate": dayjs().add(7, 'day').toISOString()}
+  const body = {"startDate": dayjs().subtract(2, 'month').toISOString(), "endDate": dayjs().add(7, 'day').toISOString()}
   const response = await apiClient.post(`/workout/user/${athleteId}/dated`, body);
   if (response.status != 200){
     throw Error("status not 200.")
   }
   exercises.value = [];
   for (const exercise of response.data) {
-    console.log(exercise)
     exercises.value.push({notes: exercise.notes, expectedDate:  new Date(Date.parse(exercise.expected_date)), id: exercise.id, focusArea: exercise.focus_area, date: exercise.date, totalTime: exercise.total_time })
   }
-  console.log('data', response.data)
 }
 
 function getPrettyDate(dateStr) {
@@ -51,13 +52,79 @@ function getPrettyDate(dateStr) {
   return day.format('MM/DD/YYYY');
 }
 
-function showExercise(exerciseId) {
-  console.log("should be showing...")
-  dialogExercise = exercises.value.find((exercise) => {return exercise.id == exerciseId});
-  dialogExerciseIsCompleted.value = dialogExercise.date != null;
-  shouldShowExerciseDialog.value = true;
-  console.log(dialogExercise.expectedDate)
+// todo from ExercisePlans.vue
+const mapSetToPlanSet = (set) => ({
+  id: set.id,
+  completed: !!set.completed,
+  goalWeight: set.goal_weight ?? null,
+  goalReps: set.goal_reps ?? null,
+  goalTime: set.goal_time ?? null,
+  goalDist: set.goal_dist ?? null,
+  actualWeight: set.actual_weight ?? null,
+  actualReps: set.actual_reps ?? null,
+  actualTime: set.actual_time ?? null,
+  actualDist: set.actual_dist ?? null,
+  distUnits: set.dist_units ?? null,
+});
 
+// todo refactor to helper cause Emily's done all the work!
+async function fetchExercisesForWorkout(workoutId) {
+  exercisesLoading.value = true;
+  exerciseLoadError.value = null;
+  dialogExercises.value = [];
+
+  try {
+    const response = await apiClient.get(`workout/${workoutId}/exercises`);
+    const exercises = Array.isArray(response.data) ? response.data : [];
+
+    const mappedExercises = await Promise.all(
+      exercises.map(async (exercise) => {
+        const sets = await fetchSetsForExercise(exercise.id);
+        let normalizedSets = [];
+        for (let set of sets) {
+          normalizedSets.push(mapSetToPlanSet(set));
+        }
+
+        return {
+          id: exercise.id,
+          assignmentId: exercise.id,
+          templateId: exercise.exercise_template_id,
+          name: exercise.exerciseTemplate?.name || "Unnamed Exercise",
+          type: exercise.exerciseTemplate?.type || "other",
+          muscleGroup: exercise.exerciseTemplate?.muscle_group || "other",
+          notes: exercise.notes || "",
+          restTimer: exercise.rest_timer || 30,
+          completed: false,
+          sets: normalizedSets,
+          mileTimes: "",
+        };
+      })
+    );
+    dialogExercises.value = mappedExercises;
+
+  } catch (err) {
+    console.error("Error loading exercises:", err);
+    exerciseLoadError.value = err?.response?.data?.message || "Unable to load exercises for this workout.";
+  } finally {
+    exercisesLoading.value = false;
+  }
+}
+
+async function fetchSetsForExercise(exerciseId) {
+  try {
+    const response = await apiClient.get(`exercise/${exerciseId}/sets`);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (err) {
+    console.error(`Error loading sets for exercise ${exerciseId}:`, err);
+    return [];
+  }
+}
+
+function showWorkout(workoutId) {
+  fetchExercisesForWorkout(workoutId);
+  dialogWorkout = exercises.value.find((workout) => {return workout.id == workoutId});
+  dialogWorkoutIsCompleted.value = dialogWorkout.date != null;
+  shouldshowWorkoutDialog.value = true;
 }
 
 getAthleteInfo()
@@ -95,7 +162,7 @@ getExercises()
 
               <div>
                 <div class="d-flex align-center justify-space-between mb-4 flex-wrap">
-                  <h3 class="text-subtitle-1 font-weight-medium mb-0">Recent & Upcoming Exercises</h3>
+                  <h3 class="text-subtitle-1 font-weight-medium mb-0">Recent & Upcoming Workouts</h3>
                   <!-- <v-btn
                     color="primary"
                     variant="tonal"
@@ -117,7 +184,7 @@ getExercises()
                           :text="getPrettyDate(exercise.expectedDate)"
                           variant="tonal"
                           height="100px"
-                          @click="showExercise(exercise.id)"
+                          @click="showWorkout(exercise.id)"
                         >
                         </v-card>
                       </v-col>
@@ -143,64 +210,65 @@ getExercises()
       </v-col>
     </v-row>
 
-    <v-dialog v-model="shouldShowExerciseDialog" max-width="560">
+    
+    <v-dialog v-model="shouldshowWorkoutDialog" max-width="560">
       <v-card>
         <v-card-title class="d-flex align-center justify-space-between">
-          <span>{{ dialogExercise.focusArea}}</span>
+          <span>{{ dialogWorkout.focusArea}}</span>
         </v-card-title>
         <v-card-text>
-          <v-text-field
-            :disabled="dialogExerciseIsCompleted"
-            v-model="dialogExercise.focusArea"
-            label="Focus Area"
-            prepend-inner-icon="mdi-crosshairs-gps"
-            required
-          />
-          <v-text-field
-            :disabled="dialogExerciseIsCompleted"
-            v-model="dialogExercise.notes"
-            label="Notes"
-            prepend-inner-icon="mdi-note"
-            required
-          />
-          <!-- ugh gotta format these properly...-->
-          <v-text-field
-          :disabled="dialogExerciseIsCompleted" 
-            v-model="dialogExercise.expectedDate"
-            label="Expected date"
-            type="date"
-            prepend-inner-icon="mdi-calendar-clock"
-            required
-          />
-          <v-text-field
-            :disabled="dialogExerciseIsCompleted"
-            v-model="dialogExercise.date"
-            label="Completion date"
-            type="date"
-            prepend-inner-icon="mdi-calendar-clock"
-            required
-          />
-          <v-text-field
-            :disabled="dialogExerciseIsCompleted"
-            v-model="dialogExercise.totalTime"
-            label="Elapsed Workout Time"
-            prepend-inner-icon="mdi-timer"
-            suffix="minutes"
-            required
-          />
+          <div v-if="dialogWorkout.notes">
+            <span>Notes: {{ dialogWorkout.notes}}</span>
+          </div>
+          
+          <div v-if="dialogWorkout.expectedDate">
+            <span>Expected Completion Date: {{ getPrettyDate(dialogWorkout.expectedDate)}}</span>
+          </div>
+          <div v-if="!dialogWorkout.date">
+            <span style="color: red;">Not completed yet</span>
+          </div>
+          <div v-else-if="dayjs(dialogWorkout.expectedDate).isSame(dayjs(dialogWorkout.date), 'day')">
+            <span>Completed on time!</span>
+          </div>
+          <div v-else-if="dayjs(dialogWorkout.expectedDate).isBefore(dayjs(dialogWorkout.date))">
+            <span style="color: red;">Completed Late! ({{ getPrettyDate(dialogWorkout.date) }})</span>
+          </div>
+          <div v-else>
+            <span style="color: orange;">Completed Early! ({{ getPrettyDate(dialogWorkout.date) }})</span>
+          </div>
+          <div v-if="dialogWorkout.date && dialogWorkout.totalTime">
+            <span>Total Workout Time: {{ parseInt(dialogWorkout.totalTime / 60, 10)}} mins</span>
+          </div>
         </v-card-text>
+
+        <v-alert
+          v-if="exerciseLoadError"
+          type="error"
+          variant="tonal"
+          density="comfortable"
+          class="mb-4"
+        >
+          {{ exerciseLoadError }}
+        </v-alert>
+        <div v-else-if="exercisesLoading" class="d-flex justify-center py-6">
+          <v-progress-circular indeterminate color="primary" />
+        </div>
+        <v-expansion-panels v-else>
+          <exercise-item v-for="exercise in dialogExercises"
+            :key="exercise.assignmentId || exercise.templateId"
+            :exercise="exercise"
+            :mutation-pending="true"
+            :show-mutation-options="false"
+            :show-actual-results="true"
+          />
+        </v-expansion-panels>
         
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="shouldShowExerciseDialog = false">Done</v-btn>
-          <!-- <v-btn
-            color="primary"
-            @click=""
-          >
-            Add to Team
-          </v-btn> -->
+          <v-btn variant="text" @click="shouldshowWorkoutDialog = false">Done</v-btn>
         </v-card-actions>
       </v-card>
+      
     </v-dialog>
 
 
