@@ -106,7 +106,9 @@ const startOfToday = () => {
 
 const hasWorkouts = computed(() => coachWorkouts.value.length > 0);
 const workoutsWithoutSchedule = computed(() =>
-  coachWorkouts.value.filter((workout) => !workout.expectedDate && !workout.completedOn).length
+  coachWorkouts.value.filter(
+    (workout) => workout.parentId && !workout.expectedDate && !workout.completedOn
+  ).length
 );
 
 const weeklyWorkload = computed(() => {
@@ -173,7 +175,16 @@ const upcomingAssignments = computed(() => {
 
 const recentlyCompleted = computed(() =>
   coachWorkouts.value
-    .filter((workout) => workout.completedOn)
+    .filter((workout) => workout.completedOn && workout.parentId)
+    .map((workout) => {
+      const sourcePlan = workout.parentId
+        ? coachWorkouts.value.find((plan) => plan.id === workout.parentId)
+        : workout;
+      return {
+        ...workout,
+        teamName: sourcePlan && sourcePlan.focusArea ? sourcePlan.focusArea : null,
+      };
+    })
     .sort((a, b) => b.completedOn - a.completedOn)
     .slice(0, 5)
 );
@@ -231,6 +242,117 @@ const weeklyChartOptions = {
       grid: { borderDash: [4, 4] },
     },
   },
+};
+
+const assignmentDetailsDialog = ref(false);
+const assignmentDetailsLoading = ref(false);
+const assignmentDetailsError = ref("");
+const assignmentDetails = ref(null);
+const assignmentExercises = ref([]);
+const assignmentShowActuals = ref(false);
+const assignmentTeamNames = ref([]);
+const templateNameCache = new Map();
+const teamListCache = ref([]);
+const teamMembersCache = new Map();
+const athleteTeamsCache = new Map();
+
+const resetAssignmentDetails = () => {
+  assignmentDetails.value = null;
+  assignmentExercises.value = [];
+  assignmentDetailsError.value = "";
+  assignmentTeamNames.value = [];
+  assignmentShowActuals.value = false;
+};
+
+const openAssignmentDetails = async (assignment) => {
+  if (!assignment) return;
+  resetAssignmentDetails();
+  assignmentDetailsDialog.value = true;
+  assignmentDetailsLoading.value = true;
+  assignmentDetails.value = assignment;
+  assignmentShowActuals.value = Boolean(assignment.completedOn);
+  try {
+    assignmentTeamNames.value = await loadTeamNamesForAthlete(assignment.athleteId);
+    const response = await apiClient.get(`workout/${assignment.id}/exercises`);
+    const exercises = Array.isArray(response.data) ? response.data : [];
+    assignmentExercises.value = await Promise.all(
+      exercises.map(async (item) => {
+        const templateId = item.exercise_template_id ?? item.exercise_template?.id;
+        const name = await resolveExerciseName(item, templateId);
+        return {
+          id: item.id,
+          name,
+          type: item.exercise_template?.type ?? "",
+          muscleGroup: item.exercise_template?.muscle_group ?? "",
+          notes: item.notes ?? "",
+          restTimer: item.rest_timer ?? item.restTimer ?? "",
+          sets: Array.isArray(item.sets) ? item.sets : [],
+        };
+      })
+    );
+  } catch (error) {
+    console.error(`Failed to load workout ${assignment.id} details`, error);
+    assignmentDetailsError.value =
+      error?.response?.data?.message || "Unable to load workout details.";
+  } finally {
+    assignmentDetailsLoading.value = false;
+  }
+};
+
+const resolveExerciseName = async (exercise, templateId) => {
+  if (exercise.exercise_template?.name) return exercise.exercise_template.name;
+  if (exercise.name) return exercise.name;
+  if (templateId) {
+    if (templateNameCache.has(templateId)) {
+      return templateNameCache.get(templateId);
+    }
+    try {
+      const response = await apiClient.get(`exerciseTemplate/${templateId}`);
+      const templateName = response.data?.name ?? `Exercise #${templateId}`;
+      templateNameCache.set(templateId, templateName);
+      return templateName;
+    } catch (error) {
+      console.error(`Failed to load template ${templateId}`, error);
+      return `Exercise #${templateId}`;
+    }
+  }
+  return `Exercise #${exercise.id}`;
+};
+
+const ensureTeamsLoaded = async () => {
+  if (teamListCache.value.length) return;
+  const response = await apiClient.get("team");
+  teamListCache.value = Array.isArray(response.data) ? response.data : [];
+};
+
+const loadTeamNamesForAthlete = async (athleteId) => {
+  if (!athleteId) return [];
+  if (athleteTeamsCache.has(athleteId)) {
+    return athleteTeamsCache.get(athleteId);
+  }
+  await ensureTeamsLoaded();
+  const teamNames = [];
+  await Promise.all(
+    teamListCache.value.map(async (team) => {
+      try {
+        let members = teamMembersCache.get(team.id);
+        if (!members) {
+          const resp = await apiClient.get(`team/${team.id}/users`);
+          members = Array.isArray(resp.data)
+            ? resp.data.map((member) => member.id ?? member.user_id ?? member.userId)
+            : [];
+          teamMembersCache.set(team.id, members);
+        }
+        if (members.some((memberId) => matchesId(memberId, athleteId))) {
+          teamNames.push(team.name ?? `Team ${team.id}`);
+        }
+      } catch (error) {
+        console.error(`Failed to load users for team ${team.id}`, error);
+      }
+    })
+  );
+  athleteTeamsCache.set(athleteId, teamNames);
+  return teamNames;
 };
 
 const loadWorkouts = async () => {
@@ -307,6 +429,51 @@ const formatAthleteLabel = (assignment) => {
     ensureAthleteName(assignment.athleteId);
   }
   return athleteNames[assignment.athleteId] ?? `Athlete ${assignment.athleteId}`;
+};
+
+const exerciseLines = (exercise) => {
+  const lines = [];
+  const setLines = formatSetsSummaryLines(exercise.sets, assignmentShowActuals.value);
+  lines.push(...setLines);
+  if (exercise.type || exercise.muscleGroup) {
+    lines.push([exercise.type, exercise.muscleGroup].filter(Boolean).join(" • "));
+  }
+  if (exercise.restTimer) lines.push(`Rest ${exercise.restTimer}s`);
+  if (exercise.notes) lines.push(exercise.notes);
+  return lines;
+};
+
+const formatSetsSummaryLines = (sets, showActual) => {
+  if (!Array.isArray(sets) || !sets.length) return [];
+  const lines = [];
+  sets.forEach((set, index) => {
+    const goal = formatSetMetrics(set.goal_reps, set.goal_weight, set.goal_time, set.goal_dist, set.dist_units);
+    const actual = showActual
+      ? formatSetMetrics(
+          set.actual_reps,
+          set.actual_weight,
+          set.actual_time,
+          set.actual_dist,
+          set.dist_units
+        )
+      : "";
+    const label = sets.length > 1 ? `Set ${index + 1}` : "Set";
+    if (goal) lines.push(`${label} Goal: ${goal}`);
+    if (actual) lines.push(`${label} Actual: ${actual}`);
+  });
+  return lines;
+};
+
+const formatSetMetrics = (reps, weight, time, dist, distUnits) => {
+  const parts = [];
+  if (reps) parts.push(`${reps} reps`);
+  if (weight) parts.push(`@ ${weight}`);
+  if (time) parts.push(`${time}s`);
+  if (dist) {
+    const units = distUnits ? ` ${distUnits}` : "";
+    parts.push(`${dist}${units}`);
+  }
+  return parts.join(" ");
 };
 
 const assignmentStatusCounts = computed(() => {
@@ -454,6 +621,8 @@ onMounted(() => {
               <v-list-item
                 v-for="assignment in upcomingAssignments"
                 :key="assignment.id"
+                clickable
+                @click="openAssignmentDetails(assignment)"
               >
                 <v-list-item-title>
                   {{ assignment.title }}
@@ -487,6 +656,8 @@ onMounted(() => {
               <v-list-item
                 v-for="completed in recentlyCompleted"
                 :key="completed.id"
+                clickable
+                @click="openAssignmentDetails(completed)"
               >
                 <v-list-item-title>
                   {{ completed.title }}
@@ -503,6 +674,71 @@ onMounted(() => {
           </v-card>
         </v-col>
       </v-row>
+
+      <v-dialog v-model="assignmentDetailsDialog" max-width="780">
+        <v-card>
+          <v-card-title class="text-subtitle-1 font-weight-medium">
+            {{ assignmentDetails?.title || "Workout Details" }}
+          </v-card-title>
+          <v-card-subtitle class="text-body-2 text-medium-emphasis">
+            {{ formatDateLabel(assignmentDetails?.expectedDate) }}
+            <span v-if="assignmentDetails?.athleteId" class="text-medium-emphasis">
+              • Athlete: {{ assignmentDetails?.athleteId }}
+            </span>
+            <span
+              v-if="assignmentTeamNames.length"
+              class="text-medium-emphasis d-block mt-1"
+            >
+              Team: {{ assignmentTeamNames.join(", ") }}
+            </span>
+          </v-card-subtitle>
+          <v-divider />
+          <v-card-text>
+            <div v-if="assignmentDetailsLoading" class="d-flex justify-center py-6">
+              <v-progress-circular indeterminate color="primary" />
+            </div>
+            <v-alert
+              v-else-if="assignmentDetailsError"
+              type="error"
+              variant="tonal"
+              density="comfortable"
+              class="mb-3"
+            >
+              {{ assignmentDetailsError }}
+            </v-alert>
+            <div v-else>
+              <div class="text-subtitle-2 mb-2">Exercises</div>
+              <div v-if="assignmentExercises.length" class="exercise-list">
+                <div
+                  v-for="exercise in assignmentExercises"
+                  :key="exercise.id"
+                  class="exercise-item-block"
+                >
+                  <div class="exercise-title">
+                    {{ exercise.name }}
+                  </div>
+                  <div
+                    class="exercise-line"
+                    v-for="(line, idx) in exerciseLines(exercise)"
+                    :key="idx"
+                  >
+                    {{ line }}
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-body-2 text-medium-emphasis">
+                No exercises listed for this workout.
+              </div>
+            </div>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn variant="text" color="primary" @click="assignmentDetailsDialog = false">
+              Close
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
     </div>
   </v-container>
@@ -525,6 +761,29 @@ onMounted(() => {
 
 .chart-wrapper {
   height: 240px;
+}
+
+.exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.exercise-item-block {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.exercise-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.exercise-line {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 .quick-actions .v-card {
