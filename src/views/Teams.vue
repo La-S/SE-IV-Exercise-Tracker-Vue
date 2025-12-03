@@ -65,8 +65,13 @@ const teamSelected = (type, teamId) => {
 }
 
 const loadTeams = async () => {
-  const allTeams = await networkService.getAllTeams();
-  yourTeams.value = allTeams;
+  const response = await apiClient.get(`users/${user.id}/teams`);
+  const data = response.data;
+  if (Array.isArray(data)) {
+    yourTeams.value = data.map((template) =>  {return {name: template.name, id: template.id, athletes: []} });
+  } else {
+    yourTeams.value = [];
+  }
 };
 
 onMounted(() => {
