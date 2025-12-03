@@ -5,8 +5,6 @@ const props = defineProps({
     averageMileTime: { type: String, default: "--:--" },
     mileTimeHistory: { type: Array, default: []},
 });
-// mileTimeSubtext
-// averageMileTime
 </script>
 
 <template>
