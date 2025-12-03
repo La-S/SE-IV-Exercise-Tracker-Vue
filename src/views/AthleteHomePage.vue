@@ -40,6 +40,11 @@
 
     <v-row class="mb-4" dense>
       <v-col cols="12">
+        <average-mile-time-card
+          :averageMileTime=averageMileTime
+          :mileTimeSubtext=mileTimeSubtext
+          :mileTimeHistory=mileTimeHistory
+        />
         <v-card class="pa-3 elevation-2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-bold">
             Average Mile Time
@@ -102,6 +107,7 @@ import apiClient from "../services/services.js";
 import Utils from "../config/utils.js";
 import dayjs from 'dayjs';
 import WorkoutCompletionCard from "../components/WorkoutCompletionCard.vue";
+import AverageMileTimeCard from "../components/AverageMileTimeCard.vue";
 
 const completedThisWeek = ref(0);
 const totalThisWeek = ref(0);
