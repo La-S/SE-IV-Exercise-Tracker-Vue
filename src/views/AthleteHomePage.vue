@@ -210,6 +210,28 @@ const fetchCardioStats = async (workouts) => {
     const cardioTimesFromLastWorkout = [];
     let foundCardio = false;
 
+    const convertToMiles = (distance, units) => {
+      if (!distance || !units) return 0;
+      const unit = units.toLowerCase();
+      
+      switch(unit) {
+        case 'miles':
+        case 'mile':
+          return distance;
+        case 'kilometers':
+        case 'km':
+          return distance / 1.609;
+        case 'meters':
+        case 'm':
+          return distance / 1609;
+        case 'feet':
+        case 'ft':
+          return distance / 5280;
+        default:
+          return distance;
+      }
+    };
+
     for (const workout of completedWorkouts) {
       try {
         const exercisesResponse = await apiClient.get(`workout/${workout.id}/exercises`);
@@ -220,14 +242,22 @@ const fetchCardioStats = async (workouts) => {
             const setsResponse = await apiClient.get(`exercise/${exercise.id}/sets`);
             const sets = Array.isArray(setsResponse.data) ? setsResponse.data : [];
 
-            for (const set of sets) {
-              if (set.actual_time && set.actual_dist && set.actual_dist > 0) {
-                const pacePerMile = set.actual_time / set.actual_dist;
-                cardioTimesFromLastWorkout.push(pacePerMile);
-                foundCardio = true;
-              }
-            }
-          }
+        for (const set of sets) {
+          if (set.actual_time && set.actual_dist && set.actual_dist > 0) {
+          if (set.dist_units && set.dist_units.toLowerCase() === 'laps') {
+          continue;
+        }
+    
+            const distanceInMiles = convertToMiles(set.actual_dist, set.dist_units);
+    
+          if (distanceInMiles > 0) {
+            const pacePerMile = set.actual_time / distanceInMiles;
+            cardioTimesFromLastWorkout.push(pacePerMile);
+            foundCardio = true;
+         }
+       }
+ }  
+    }
         }
         if (foundCardio) break;
       } catch (err) {

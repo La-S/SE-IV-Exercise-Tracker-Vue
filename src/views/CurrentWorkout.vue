@@ -187,7 +187,7 @@
     <v-card class="pa-3 mb-3 workout-card" variant="tonal" rounded="md">
       <div class="font-weight-medium mb-1">Cardio Set {{ setIndex + 1 }}</div>
       <div class="text-body-2 mb-2">
-        {{ exercise.goalMiles[setIndex] }} miles  
+        {{ exercise.goalMiles[setIndex] }} {{ exercise.distUnits[setIndex] }}  
         <span v-if="exercise.goalPace[setIndex]">
           @ {{ exercise.goalPace[setIndex] }} mins
         </span>
@@ -195,7 +195,7 @@
 
       <v-text-field
         v-model="exercise.actualMiles[setIndex]"
-        label="Actual distance (miles)"
+        :label="`Actual distance (${exercise.distUnits[setIndex]})`"
         type="number"
         dense
         hide-details
@@ -449,6 +449,7 @@ async function fetchExercisesForWorkout(workoutId) {
           weight: sets.map(s => s.goal_weight || null),
           goalMiles: sets.map(s => s.goal_dist || null),
           goalPace: sets.map(s => s.goal_time || null),
+          distUnits: sets.map(s => s.dist_units || "miles"),
           actualMiles: sets.map(s => 0),
           actualWeight: sets.map(s => 0),
           actualTime: sets.map(s => 0), 
