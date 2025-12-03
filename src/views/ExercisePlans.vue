@@ -232,6 +232,18 @@ const mapTemplateToExercise = (template) => {
   };
 };
 
+const refreshTemplateLibrary = async () => {
+  try {
+    const response = await apiClient.get("exerciseTemplate");
+    const templates = Array.isArray(response.data) ? response.data : [];
+    console.info("[ExerciseTemplates] Refreshed library count", templates.length);
+    availableExercises.value = templates.map(mapTemplateToExercise);
+    setTemplateLookup();
+  } catch (error) {
+    console.error("Failed to refresh templates", error);
+  }
+};
+
 const mapWorkoutToPlan = (workout) => {
   return {
     id: workout.id,
@@ -889,6 +901,8 @@ const updatePlanExercisesFromTemplate = (template) => {
         exercise.name = template.name;
         exercise.type = template.type;
         exercise.muscleGroup = template.muscleGroup;
+        exercise.rawType = template.rawType;
+        exercise.rawMuscleGroup = template.rawMuscleGroup;
       }
     });
   });
@@ -911,34 +925,37 @@ const applyAssignmentUpdates = (assignmentId, updates) => {
   });
 };
 
-const updateExercise = async () => {
-  if (!editExercise.templateId || exerciseMutationPending.value) {
+const updateExercise = async (submitted) => {
+  const payloadSource = submitted || editExercise;
+  if (!payloadSource.templateId || exerciseMutationPending.value) {
     return;
   }
 
-  if (editExercise.source === "library") {
-    const normalized = normalizeTemplateFields(editExercise);
+  if (payloadSource.source === "library") {
+    const normalized = normalizeTemplateFields(payloadSource);
+    if (!normalized.name) {
+      exerciseMutationError.value = "Exercise name is required.";
+      return;
+    }
     const payload = toTemplatePayload(normalized);
     try {
       exerciseMutationError.value = null;
       exerciseMutationPending.value = true;
-      const response = await apiClient.put(
-        `exerciseTemplate/${editExercise.templateId}`,
-        payload
-      );
-      const updated = mapTemplateToExercise(response.data);
-      const index = availableExercises.value.findIndex((item) => item.id === updated.id);
-      if (index === -1) {
-        availableExercises.value.push(updated);
-      } else {
-        availableExercises.value[index] = updated;
+      console.info("[ExerciseTemplates] Updating template", {
+        templateId: payloadSource.templateId,
+        payload,
+      });
+      await apiClient.put(`exerciseTemplate/${payloadSource.templateId}`, payload);
+      await refreshTemplateLibrary();
+      const updated = availableExercises.value.find((item) => item.id === payloadSource.templateId);
+      console.info("[ExerciseTemplates] Refreshed template", updated);
+      if (updated) {
+        updatePlanExercisesFromTemplate(updated);
       }
-      setTemplateLookup();
-      updatePlanExercisesFromTemplate(updated);
       editExerciseDialog.value = false;
       resetEditExercise();
     } catch (error) {
-      console.error(`Failed to update exercise template ${editExercise.templateId}`, error);
+      console.error(`Failed to update exercise template ${payloadSource.templateId}`, error);
       exerciseMutationError.value =
         error?.response?.data?.message ||
         "Unable to update the exercise. Please adjust the values and try again.";

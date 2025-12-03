@@ -70,16 +70,6 @@ const normalizedType = computed(() => (props.exercise.type || "").toString().toL
         <v-col cols = "12">
           <div class = "d-flex justify-space-between align-center mb-2">
             <h4 class = "text-subtitle-2 font-weight-medium mb-0">Sets</h4>
-            <v-btn
-              v-if = "showMutationOptions"
-              variant = "text"
-              size = "small"
-              color = "primary"
-              :disabled = "mutationPending"
-              @click.stop = "emit('edit-sets')"
-            >
-              Edit Sets
-            </v-btn>
           </div>
 
           <v-alert
