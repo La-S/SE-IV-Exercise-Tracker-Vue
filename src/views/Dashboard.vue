@@ -624,7 +624,10 @@ const formatSetMetrics = (reps, weight, time, dist, distUnits) => {
 const assignmentStatusCounts = computed(() => {
   const counts = { upcoming: 0, completed: 0, overdue: 0 };
   const today = startOfToday();
+   const { start, end } = getChartDateRange();
   teamScopedWorkouts.value.forEach((workout) => {
+    const inRange =
+      workout.expectedDate && workout.expectedDate >= start && workout.expectedDate < end;
     if (workout.completedOn) {
       counts.completed += 1;
     } else if (!workout.expectedDate) {
@@ -635,7 +638,7 @@ const assignmentStatusCounts = computed(() => {
       if (workout.parentId !== null && workout.parentId !== undefined) {
         counts.upcoming += 1;
       }
-    } else {
+    } else if (inRange) {
       counts.overdue += 1;
     }
   });
