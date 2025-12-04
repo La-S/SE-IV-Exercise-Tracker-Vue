@@ -12,6 +12,7 @@ import {
 import { Bar } from "vue-chartjs";
 import Utils from "../config/utils";
 import apiClient from "../services/apiService";
+import { parseToLocalDate } from "../services/date";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -63,7 +64,7 @@ const resolvedCoachId = computed(() => {
 const safeDate = (value) => {
   if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) ? null : parseToLocalDate(date);
 };
 
 const normalizeWorkout = (workout) => ({
