@@ -86,7 +86,7 @@ const assign = () => emit("assign");
       <v-text-field
         :model-value="assignmentDate"
         type="date"
-        label="Assignment date"
+        label="Expected Completion Date"
         prepend-inner-icon="mdi-calendar"
         density="comfortable"
         class="mt-2"

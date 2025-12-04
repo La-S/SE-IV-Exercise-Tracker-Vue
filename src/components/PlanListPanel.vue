@@ -27,7 +27,7 @@ const handleCreate = () => emit("create");
 <template>
   <v-card class = "h-100 d-flex flex-column">
     <v-card-title class = "d-flex align-center justify-space-between flex-wrap gap-2">
-      <span class = "text-h6 text-sm-h5">Exercise Plans</span>
+      <span class = "text-h6 text-sm-h5">Workout Plans</span>
       <v-btn
         variant = "tonal"
         color = "primary"

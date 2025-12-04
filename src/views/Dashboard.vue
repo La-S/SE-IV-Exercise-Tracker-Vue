@@ -12,6 +12,7 @@ import {
 import { Bar } from "vue-chartjs";
 import Utils from "../config/utils";
 import apiClient from "../services/apiService";
+import { parseToLocalDate } from "../services/date";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
@@ -63,13 +64,15 @@ const resolvedCoachId = computed(() => {
 const safeDate = (value) => {
   if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) ? null : parseToLocalDate(date);
 };
 
 const normalizeWorkout = (workout) => ({
   id: workout.id,
   athleteId: workout.user_id ?? null,
   coachId: workout.coach_id ?? null,
+  assignedTeamId:
+    workout.team_id ?? workout.teamId ?? workout.assigned_team_id ?? workout.assignedTeamId ?? null,
   expectedDate: safeDate(workout.expected_date),
   completedOn: safeDate(workout.date),
   updatedAt: safeDate(workout.updatedAt),
@@ -98,15 +101,28 @@ const coachWorkouts = computed(() => {
   );
 });
 
+const teamScopedWorkouts = computed(() => {
+  if (selectedTeamId.value === "all") return coachWorkouts.value;
+  const cached = teamWorkoutsCache.value.get(selectedTeamId.value);
+  if (cached) return cached;
+  const members = teamMembersCache.get(selectedTeamId.value) || [];
+  if (!members.length) return [];
+  return coachWorkouts.value.filter((workout) =>
+    members.some((memberId) => matchesId(memberId, workout.athleteId))
+  );
+});
+
 const startOfToday = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
 };
 
-const hasWorkouts = computed(() => coachWorkouts.value.length > 0);
+const hasWorkouts = computed(() => teamScopedWorkouts.value.length > 0);
 const workoutsWithoutSchedule = computed(() =>
-  coachWorkouts.value.filter((workout) => !workout.expectedDate && !workout.completedOn).length
+  teamScopedWorkouts.value.filter(
+    (workout) => workout.parentId && !workout.expectedDate && !workout.completedOn
+  ).length
 );
 
 const weeklyWorkload = computed(() => {
@@ -127,7 +143,7 @@ const weeklyWorkload = computed(() => {
     };
   });
 
-  coachWorkouts.value.forEach((workout) => {
+  teamScopedWorkouts.value.forEach((workout) => {
     if (!workout.expectedDate) return;
     const compare = new Date(workout.expectedDate);
     compare.setHours(0, 0, 0, 0);
@@ -151,7 +167,7 @@ const weeklyWorkload = computed(() => {
 
 const upcomingAssignments = computed(() => {
   const today = startOfToday();
-  return coachWorkouts.value
+  return teamScopedWorkouts.value
     .filter(
       (workout) =>
         workout.expectedDate &&
@@ -172,8 +188,17 @@ const upcomingAssignments = computed(() => {
 });
 
 const recentlyCompleted = computed(() =>
-  coachWorkouts.value
-    .filter((workout) => workout.completedOn)
+  teamScopedWorkouts.value
+    .filter((workout) => workout.completedOn && workout.parentId)
+    .map((workout) => {
+      const sourcePlan = workout.parentId
+        ? teamScopedWorkouts.value.find((plan) => plan.id === workout.parentId)
+        : workout;
+      return {
+        ...workout,
+        teamName: sourcePlan && sourcePlan.focusArea ? sourcePlan.focusArea : null,
+      };
+    })
     .sort((a, b) => b.completedOn - a.completedOn)
     .slice(0, 5)
 );
@@ -233,14 +258,252 @@ const weeklyChartOptions = {
   },
 };
 
+const assignmentDetailsDialog = ref(false);
+const assignmentDetailsLoading = ref(false);
+const assignmentDetailsError = ref("");
+const assignmentDetails = ref(null);
+const assignmentExercises = ref([]);
+const assignmentShowActuals = ref(false);
+const assignmentTeamNames = ref([]);
+const templateNameCache = new Map();
+const teamListCache = ref([]);
+const teamMembersCache = new Map();
+const athleteTeamsCache = new Map();
+const selectedTeamId = ref("all");
+const teamsLoading = ref(false);
+const teamWorkoutsCache = ref(new Map());
+const teamWorkoutsLoading = ref(false);
+const coachWorkoutsLoading = ref(false);
+
+const coachTeams = computed(() => {
+  if (!teamListCache.value.length) return [];
+  const coachId = resolvedCoachId.value;
+  if (!coachId) return [];
+  return teamListCache.value.filter((team) => {
+    const members = teamMembersCache.get(team.id) || [];
+    return members.some((memberId) => matchesId(memberId, coachId));
+  });
+});
+
+const teamFilterOptions = computed(() => {
+  const options = [{ label: "All teams", value: "all" }];
+  const teams = coachTeams.value;
+  if (!teams.length) return options;
+  return options.concat(
+    teams.map((team) => ({
+      label: team.name ?? `Team ${team.id}`,
+      value: team.id,
+    }))
+  );
+});
+
+const resetAssignmentDetails = () => {
+  assignmentDetails.value = null;
+  assignmentExercises.value = [];
+  assignmentDetailsError.value = "";
+  assignmentTeamNames.value = [];
+  assignmentShowActuals.value = false;
+};
+
+const openAssignmentDetails = async (assignment) => {
+  if (!assignment) return;
+  resetAssignmentDetails();
+  assignmentDetailsDialog.value = true;
+  assignmentDetailsLoading.value = true;
+  assignmentDetails.value = assignment;
+  assignmentShowActuals.value = Boolean(assignment.completedOn);
+  try {
+    assignmentTeamNames.value = await resolveTeamNamesForAssignment(assignment);
+    const response = await apiClient.get(`workout/${assignment.id}/exercises`);
+    const exercises = Array.isArray(response.data) ? response.data : [];
+    assignmentExercises.value = await Promise.all(
+      exercises.map(async (item) => {
+        const templateId = item.exercise_template_id ?? item.exercise_template?.id;
+        const name = await resolveExerciseName(item, templateId);
+        return {
+          id: item.id,
+          name,
+          type: item.exercise_template?.type ?? "",
+          muscleGroup: item.exercise_template?.muscle_group ?? "",
+          notes: item.notes ?? "",
+          restTimer: item.rest_timer ?? item.restTimer ?? "",
+          sets: Array.isArray(item.sets) ? item.sets : [],
+        };
+      })
+    );
+  } catch (error) {
+    console.error(`Failed to load workout ${assignment.id} details`, error);
+    assignmentDetailsError.value =
+      error?.response?.data?.message || "Unable to load workout details.";
+  } finally {
+    assignmentDetailsLoading.value = false;
+  }
+};
+
+const resolveExerciseName = async (exercise, templateId) => {
+  if (exercise.exercise_template?.name) return exercise.exercise_template.name;
+  if (exercise.name) return exercise.name;
+  if (templateId) {
+    if (templateNameCache.has(templateId)) {
+      return templateNameCache.get(templateId);
+    }
+    try {
+      const response = await apiClient.get(`exerciseTemplate/${templateId}`);
+      const templateName = response.data?.name ?? `Exercise #${templateId}`;
+      templateNameCache.set(templateId, templateName);
+      return templateName;
+    } catch (error) {
+      console.error(`Failed to load template ${templateId}`, error);
+      return `Exercise #${templateId}`;
+    }
+  }
+  return `Exercise #${exercise.id}`;
+};
+
+const ensureTeamsLoaded = async () => {
+  if (teamListCache.value.length) return;
+  const response = await apiClient.get("team");
+  console.log("This is ensure teams loaded res" + response.data);
+  teamListCache.value = Array.isArray(response.data) ? response.data : [];
+};
+
+const getTeamNameById = (teamId) => {
+  const match = teamListCache.value.find((team) => matchesId(team.id, teamId));
+  return match ? match.name ?? `Team ${match.id}` : null;
+};
+
+const loadTeamNamesForAthlete = async (athleteId) => {
+  if (!athleteId) return [];
+  if (athleteTeamsCache.has(athleteId)) {
+    return athleteTeamsCache.get(athleteId);
+  }
+  await ensureTeamsLoaded();
+  await ensureAllTeamMembersLoaded();
+  const teamNames = [];
+  await Promise.all(
+    teamListCache.value.map(async (team) => {
+      try {
+        const members = teamMembersCache.get(team.id) || [];
+        if (members.some((memberId) => matchesId(memberId, athleteId))) {
+          teamNames.push(team.name ?? `Team ${team.id}`);
+        }
+      } catch (error) {
+        console.error(`Failed to load users for team ${team.id}`, error);
+      }
+    })
+  );
+  athleteTeamsCache.set(athleteId, teamNames);
+  return teamNames;
+};
+
+const resolveTeamNamesForAssignment = async (assignment) => {
+  if (!assignment) return [];
+  await ensureTeamsLoaded();
+  await ensureAllTeamMembersLoaded();
+
+  const explicitTeamId =
+    assignment.assignedTeamId ?? assignment.teamId ?? assignment.team_id ?? null;
+
+  if (explicitTeamId !== null && explicitTeamId !== undefined) {
+    const name = getTeamNameById(explicitTeamId);
+    if (name) return [name];
+  }
+
+  const memberTeams = await loadTeamNamesForAthlete(assignment.athleteId);
+  return memberTeams.length ? [memberTeams[0]] : [];
+};
+
+const ensureAllTeamMembersLoaded = async () => {
+  if (teamMembersCache.size && teamMembersCache.size === teamListCache.value.length) {
+    return;
+  }
+  teamsLoading.value = true;
+  try {
+    await ensureTeamsLoaded();
+    await Promise.all(
+      teamListCache.value.map(async (team) => {
+        if (teamMembersCache.has(team.id)) return;
+        const resp = await apiClient.get(`team/${team.id}/users`);
+        const members = Array.isArray(resp.data)
+          ? resp.data.map((member) => member.id ?? member.user_id ?? member.userId)
+          : [];
+        teamMembersCache.set(team.id, members);
+      })
+    );
+  } catch (error) {
+    console.error("Failed to load team members", error);
+  } finally {
+    teamsLoading.value = false;
+  }
+};
+
+const getChartDateRange = () => {
+  const today = startOfToday();
+  const start = new Date(today);
+  start.setDate(today.getDate() - today.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return { start, end };
+};
+
+const fetchCoachWorkoutsRange = async () => {
+  coachWorkoutsLoading.value = true;
+  try {
+    const response = await apiClient.get("workout");
+    workouts.value = Array.isArray(response.data) ? response.data : [];
+    lastUpdated.value = new Date();
+  } catch (error) {
+    console.error("Failed to load coach workouts", error);
+    loadError.value =
+      error?.response?.data?.message || "Unable to load workouts. Please try again.";
+    workouts.value = [];
+  } finally {
+    coachWorkoutsLoading.value = false;
+  }
+};
+
+const fetchTeamWorkouts = async (teamId) => {
+  if (!teamId || teamId === "all") return;
+  if (teamWorkoutsLoading.value) return;
+  const range = getChartDateRange();
+  teamWorkoutsLoading.value = true;
+  try {
+    await ensureAllTeamMembersLoaded();
+    const response = await apiClient.post(`workout/team/${teamId}/dated`, {
+      startDate: range.start.toISOString(),
+      endDate: range.end.toISOString(),
+    });
+    const data = Array.isArray(response.data) ? response.data : [];
+    const normalized = data.map(normalizeWorkout);
+    const next = new Map(teamWorkoutsCache.value);
+    next.set(teamId, normalized);
+    teamWorkoutsCache.value = next;
+  } catch (error) {
+    console.error(`Failed to load workouts for team ${teamId}`, error);
+    const members = teamMembersCache.get(teamId) || [];
+    if (members.length) {
+      const derived = coachWorkouts.value.filter((workout) =>
+        members.some((memberId) => matchesId(memberId, workout.athleteId))
+      );
+      const next = new Map(teamWorkoutsCache.value);
+      next.set(teamId, derived);
+      teamWorkoutsCache.value = next;
+    }
+  } finally {
+    teamWorkoutsLoading.value = false;
+  }
+};
+
 const loadWorkouts = async () => {
   loading.value = true;
   loadError.value = "";
   try {
-    const response = await apiClient.get("workout");
-    const data = Array.isArray(response.data) ? response.data : [];
-    workouts.value = data;
-    lastUpdated.value = new Date();
+    await ensureTeamsLoaded();
+    await ensureAllTeamMembersLoaded();
+    await fetchCoachWorkoutsRange();
+    if (selectedTeamId.value !== "all") {
+      await fetchTeamWorkouts(selectedTeamId.value);
+    }
   } catch (error) {
     console.error("Failed to load workouts", error);
     loadError.value =
@@ -309,16 +572,69 @@ const formatAthleteLabel = (assignment) => {
   return athleteNames[assignment.athleteId] ?? `Athlete ${assignment.athleteId}`;
 };
 
+const exerciseLines = (exercise) => {
+  const lines = [];
+  const setLines = formatSetsSummaryLines(exercise.sets, assignmentShowActuals.value);
+  lines.push(...setLines);
+  if (exercise.type || exercise.muscleGroup) {
+    lines.push([exercise.type, exercise.muscleGroup].filter(Boolean).join(" • "));
+  }
+  if (exercise.restTimer) lines.push(`Rest ${exercise.restTimer}s`);
+  if (exercise.notes) lines.push(exercise.notes);
+  return lines;
+};
+
+const formatSetsSummaryLines = (sets, showActual) => {
+  if (!Array.isArray(sets) || !sets.length) return [];
+  const lines = [];
+  sets.forEach((set, index) => {
+    const goal = formatSetMetrics(set.goal_reps, set.goal_weight, set.goal_time, set.goal_dist, set.dist_units);
+    const actual = showActual
+      ? formatSetMetrics(
+          set.actual_reps,
+          set.actual_weight,
+          set.actual_time,
+          set.actual_dist,
+          set.dist_units
+        )
+      : "";
+    const label = sets.length > 1 ? `Set ${index + 1}` : "Set";
+    const parts = [];
+    if (goal) parts.push(`Goal: ${goal}`);
+    if (actual) parts.push(`Actual: ${actual}`);
+    if (parts.length) {
+      lines.push(`${label}: ${parts.join(" • ")}`);
+    }
+  });
+  return lines;
+};
+
+const formatSetMetrics = (reps, weight, time, dist, distUnits) => {
+  const parts = [];
+  if (reps) parts.push(`${reps} reps`);
+  if (weight) parts.push(`@ ${weight}`);
+  if (time) parts.push(`${time}s`);
+  if (dist) {
+    const units = distUnits ? ` ${distUnits}` : "";
+    parts.push(`${dist}${units}`);
+  }
+  return parts.join(" ");
+};
+
 const assignmentStatusCounts = computed(() => {
   const counts = { upcoming: 0, completed: 0, overdue: 0 };
   const today = startOfToday();
-  coachWorkouts.value.forEach((workout) => {
+  teamScopedWorkouts.value.forEach((workout) => {
     if (workout.completedOn) {
       counts.completed += 1;
     } else if (!workout.expectedDate) {
-      counts.upcoming += 1;
+      if (workout.parentId !== null && workout.parentId !== undefined) {
+        counts.upcoming += 1;
+      }
     } else if (workout.expectedDate >= today) {
-      counts.upcoming += 1;
+      if (workout.parentId !== null && workout.parentId !== undefined) {
+        counts.upcoming += 1;
+      }
     } else {
       counts.overdue += 1;
     }
@@ -344,6 +660,18 @@ onMounted(() => {
   user.value = Utils.getStore("user");
   loadWorkouts();
 });
+
+watch(
+  () => selectedTeamId.value,
+  (teamId) => {
+    if (teamId === "all") {
+      fetchCoachWorkoutsRange();
+      return;
+    }
+    fetchTeamWorkouts(teamId);
+  },
+  { immediate: false }
+);
 </script>
 
 <template>
@@ -383,11 +711,26 @@ onMounted(() => {
     </div>
 
     <div v-else>
-      <v-row class="mb-4" dense>
+      <v-row class="mb-2" dense>
+        <v-col cols="12" md="4" lg="3">
+          <v-select
+            v-model="selectedTeamId"
+            :items="teamFilterOptions"
+            item-title="label"
+            item-value="value"
+            label="Filter by team"
+            density="compact"
+            variant="outlined"
+            :loading="teamsLoading"
+            hide-details
+          />
+        </v-col>
+      </v-row>
+      <v-row class="dashboard-grid" dense>
         <v-col cols="12" md="8" lg="7">
           <v-card class="pa-4 chart-card" elevation="1">
             <div class="text-subtitle-1 font-weight-medium mb-4">
-              Assigned Exercise Plans
+              Assigned Workout Plans
             </div>
             <div v-if="hasWorkouts" class="chart-wrapper">
               <Bar :data="weeklyChartData" :options="weeklyChartOptions" />
@@ -430,7 +773,7 @@ onMounted(() => {
         No workouts assigned yet. Create a plan to get started.
       </div>
 
-      <v-row class="mb-4" dense>
+      <v-row class="dashboard-grid" dense>
         <v-col cols="12" md="6">
           <v-card class="pa-4 h-100" elevation="1">
             <div class="text-subtitle-1 font-weight-medium mb-3">
@@ -454,6 +797,8 @@ onMounted(() => {
               <v-list-item
                 v-for="assignment in upcomingAssignments"
                 :key="assignment.id"
+                clickable
+                @click="openAssignmentDetails(assignment)"
               >
                 <v-list-item-title>
                   {{ assignment.title }}
@@ -487,6 +832,8 @@ onMounted(() => {
               <v-list-item
                 v-for="completed in recentlyCompleted"
                 :key="completed.id"
+                clickable
+                @click="openAssignmentDetails(completed)"
               >
                 <v-list-item-title>
                   {{ completed.title }}
@@ -503,6 +850,77 @@ onMounted(() => {
           </v-card>
         </v-col>
       </v-row>
+
+      <v-dialog v-model="assignmentDetailsDialog" max-width="780">
+        <v-card>
+          <v-card-title class="text-subtitle-1 font-weight-medium">
+            {{ assignmentDetails?.title || "Workout Details" }}
+          </v-card-title>
+          <v-card-subtitle class="text-body-2 text-medium-emphasis">
+            {{ formatDateLabel(assignmentDetails?.expectedDate) }}
+            <span
+              v-if="
+                assignmentDetails?.athleteId !== null &&
+                assignmentDetails?.athleteId !== undefined
+              "
+              class="text-medium-emphasis"
+            >
+              • Athlete: {{ formatAthleteLabel(assignmentDetails) }}
+            </span>
+            <span
+              v-if="assignmentTeamNames.length"
+              class="text-medium-emphasis d-block mt-1"
+            >
+              Team: {{ assignmentTeamNames.join(", ") }}
+            </span>
+          </v-card-subtitle>
+          <v-divider />
+          <v-card-text>
+            <div v-if="assignmentDetailsLoading" class="d-flex justify-center py-6">
+              <v-progress-circular indeterminate color="primary" />
+            </div>
+            <v-alert
+              v-else-if="assignmentDetailsError"
+              type="error"
+              variant="tonal"
+              density="comfortable"
+              class="mb-3"
+            >
+              {{ assignmentDetailsError }}
+            </v-alert>
+            <div v-else>
+              <div class="text-subtitle-2 mb-2">Exercises</div>
+              <div v-if="assignmentExercises.length" class="exercise-list">
+                <div
+                  v-for="exercise in assignmentExercises"
+                  :key="exercise.id"
+                  class="exercise-item-block"
+                >
+                  <div class="exercise-title">
+                    {{ exercise.name }}
+                  </div>
+                  <div
+                    class="exercise-line"
+                    v-for="(line, idx) in exerciseLines(exercise)"
+                    :key="idx"
+                  >
+                    {{ line }}
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-body-2 text-medium-emphasis">
+                No exercises listed for this workout.
+              </div>
+            </div>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn variant="text" color="primary" @click="assignmentDetailsDialog = false">
+              Close
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
     </div>
   </v-container>
@@ -525,6 +943,29 @@ onMounted(() => {
 
 .chart-wrapper {
   height: 240px;
+}
+
+.exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.exercise-item-block {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.exercise-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.exercise-line {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 .quick-actions .v-card {
