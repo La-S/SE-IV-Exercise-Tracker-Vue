@@ -627,9 +627,13 @@ const assignmentStatusCounts = computed(() => {
     if (workout.completedOn) {
       counts.completed += 1;
     } else if (!workout.expectedDate) {
-      counts.upcoming += 1;
+      if (workout.parentId !== null && workout.parentId !== undefined) {
+        counts.upcoming += 1;
+      }
     } else if (workout.expectedDate >= today) {
-      counts.upcoming += 1;
+      if (workout.parentId !== null && workout.parentId !== undefined) {
+        counts.upcoming += 1;
+      }
     } else {
       counts.overdue += 1;
     }
