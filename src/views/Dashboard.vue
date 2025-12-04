@@ -627,9 +627,13 @@ const assignmentStatusCounts = computed(() => {
     if (workout.completedOn) {
       counts.completed += 1;
     } else if (!workout.expectedDate) {
-      counts.upcoming += 1;
+      if (workout.parentId !== null && workout.parentId !== undefined) {
+        counts.upcoming += 1;
+      }
     } else if (workout.expectedDate >= today) {
-      counts.upcoming += 1;
+      if (workout.parentId !== null && workout.parentId !== undefined) {
+        counts.upcoming += 1;
+      }
     } else {
       counts.overdue += 1;
     }
@@ -721,7 +725,7 @@ watch(
           />
         </v-col>
       </v-row>
-      <v-row class="mb-4" dense>
+      <v-row class="dashboard-grid" dense>
         <v-col cols="12" md="8" lg="7">
           <v-card class="pa-4 chart-card" elevation="1">
             <div class="text-subtitle-1 font-weight-medium mb-4">
@@ -768,7 +772,7 @@ watch(
         No workouts assigned yet. Create a plan to get started.
       </div>
 
-      <v-row class="mb-4" dense>
+      <v-row class="dashboard-grid" dense>
         <v-col cols="12" md="6">
           <v-card class="pa-4 h-100" elevation="1">
             <div class="text-subtitle-1 font-weight-medium mb-3">
