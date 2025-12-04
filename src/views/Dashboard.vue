@@ -70,6 +70,8 @@ const normalizeWorkout = (workout) => ({
   id: workout.id,
   athleteId: workout.user_id ?? null,
   coachId: workout.coach_id ?? null,
+  assignedTeamId:
+    workout.team_id ?? workout.teamId ?? workout.assigned_team_id ?? workout.assignedTeamId ?? null,
   expectedDate: safeDate(workout.expected_date),
   completedOn: safeDate(workout.date),
   updatedAt: safeDate(workout.updatedAt),
@@ -310,7 +312,7 @@ const openAssignmentDetails = async (assignment) => {
   assignmentDetails.value = assignment;
   assignmentShowActuals.value = Boolean(assignment.completedOn);
   try {
-    assignmentTeamNames.value = await loadTeamNamesForAthlete(assignment.athleteId);
+    assignmentTeamNames.value = await resolveTeamNamesForAssignment(assignment);
     const response = await apiClient.get(`workout/${assignment.id}/exercises`);
     const exercises = Array.isArray(response.data) ? response.data : [];
     assignmentExercises.value = await Promise.all(
@@ -364,6 +366,11 @@ const ensureTeamsLoaded = async () => {
   teamListCache.value = Array.isArray(response.data) ? response.data : [];
 };
 
+const getTeamNameById = (teamId) => {
+  const match = teamListCache.value.find((team) => matchesId(team.id, teamId));
+  return match ? match.name ?? `Team ${match.id}` : null;
+};
+
 const loadTeamNamesForAthlete = async (athleteId) => {
   if (!athleteId) return [];
   if (athleteTeamsCache.has(athleteId)) {
@@ -386,6 +393,23 @@ const loadTeamNamesForAthlete = async (athleteId) => {
   );
   athleteTeamsCache.set(athleteId, teamNames);
   return teamNames;
+};
+
+const resolveTeamNamesForAssignment = async (assignment) => {
+  if (!assignment) return [];
+  await ensureTeamsLoaded();
+  await ensureAllTeamMembersLoaded();
+
+  const explicitTeamId =
+    assignment.assignedTeamId ?? assignment.teamId ?? assignment.team_id ?? null;
+
+  if (explicitTeamId !== null && explicitTeamId !== undefined) {
+    const name = getTeamNameById(explicitTeamId);
+    if (name) return [name];
+  }
+
+  const memberTeams = await loadTeamNamesForAthlete(assignment.athleteId);
+  return memberTeams.length ? [memberTeams[0]] : [];
 };
 
 const ensureAllTeamMembersLoaded = async () => {
