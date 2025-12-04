@@ -100,6 +100,8 @@ const coachWorkouts = computed(() => {
 
 const teamScopedWorkouts = computed(() => {
   if (selectedTeamId.value === "all") return coachWorkouts.value;
+  const cached = teamWorkoutsCache.value.get(selectedTeamId.value);
+  if (cached) return cached;
   const members = teamMembersCache.get(selectedTeamId.value) || [];
   if (!members.length) return [];
   return coachWorkouts.value.filter((workout) =>
@@ -266,6 +268,9 @@ const teamMembersCache = new Map();
 const athleteTeamsCache = new Map();
 const selectedTeamId = ref("all");
 const teamsLoading = ref(false);
+const teamWorkoutsCache = ref(new Map());
+const teamWorkoutsLoading = ref(false);
+const coachWorkoutsLoading = ref(false);
 
 const coachTeams = computed(() => {
   if (!teamListCache.value.length) return [];
@@ -355,6 +360,7 @@ const resolveExerciseName = async (exercise, templateId) => {
 const ensureTeamsLoaded = async () => {
   if (teamListCache.value.length) return;
   const response = await apiClient.get("team");
+  console.log("This is ensure teams loaded res" + response.data);
   teamListCache.value = Array.isArray(response.data) ? response.data : [];
 };
 
@@ -369,7 +375,7 @@ const loadTeamNamesForAthlete = async (athleteId) => {
   await Promise.all(
     teamListCache.value.map(async (team) => {
       try {
-        let members = teamMembersCache.get(team.id) || [];
+        const members = teamMembersCache.get(team.id) || [];
         if (members.some((memberId) => matchesId(memberId, athleteId))) {
           teamNames.push(team.name ?? `Team ${team.id}`);
         }
@@ -406,16 +412,73 @@ const ensureAllTeamMembersLoaded = async () => {
   }
 };
 
+const getChartDateRange = () => {
+  const today = startOfToday();
+  const start = new Date(today);
+  start.setDate(today.getDate() - today.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return { start, end };
+};
+
+const fetchCoachWorkoutsRange = async () => {
+  coachWorkoutsLoading.value = true;
+  try {
+    const response = await apiClient.get("workout");
+    workouts.value = Array.isArray(response.data) ? response.data : [];
+    lastUpdated.value = new Date();
+  } catch (error) {
+    console.error("Failed to load coach workouts", error);
+    loadError.value =
+      error?.response?.data?.message || "Unable to load workouts. Please try again.";
+    workouts.value = [];
+  } finally {
+    coachWorkoutsLoading.value = false;
+  }
+};
+
+const fetchTeamWorkouts = async (teamId) => {
+  if (!teamId || teamId === "all") return;
+  if (teamWorkoutsLoading.value) return;
+  const range = getChartDateRange();
+  teamWorkoutsLoading.value = true;
+  try {
+    await ensureAllTeamMembersLoaded();
+    const response = await apiClient.post(`workout/team/${teamId}/dated`, {
+      startDate: range.start.toISOString(),
+      endDate: range.end.toISOString(),
+    });
+    const data = Array.isArray(response.data) ? response.data : [];
+    const normalized = data.map(normalizeWorkout);
+    const next = new Map(teamWorkoutsCache.value);
+    next.set(teamId, normalized);
+    teamWorkoutsCache.value = next;
+  } catch (error) {
+    console.error(`Failed to load workouts for team ${teamId}`, error);
+    const members = teamMembersCache.get(teamId) || [];
+    if (members.length) {
+      const derived = coachWorkouts.value.filter((workout) =>
+        members.some((memberId) => matchesId(memberId, workout.athleteId))
+      );
+      const next = new Map(teamWorkoutsCache.value);
+      next.set(teamId, derived);
+      teamWorkoutsCache.value = next;
+    }
+  } finally {
+    teamWorkoutsLoading.value = false;
+  }
+};
+
 const loadWorkouts = async () => {
   loading.value = true;
   loadError.value = "";
   try {
     await ensureTeamsLoaded();
     await ensureAllTeamMembersLoaded();
-    const response = await apiClient.get("workout");
-    const data = Array.isArray(response.data) ? response.data : [];
-    workouts.value = data;
-    lastUpdated.value = new Date();
+    await fetchCoachWorkoutsRange();
+    if (selectedTeamId.value !== "all") {
+      await fetchTeamWorkouts(selectedTeamId.value);
+    }
   } catch (error) {
     console.error("Failed to load workouts", error);
     loadError.value =
@@ -568,6 +631,18 @@ onMounted(() => {
   user.value = Utils.getStore("user");
   loadWorkouts();
 });
+
+watch(
+  () => selectedTeamId.value,
+  (teamId) => {
+    if (teamId === "all") {
+      fetchCoachWorkoutsRange();
+      return;
+    }
+    fetchTeamWorkouts(teamId);
+  },
+  { immediate: false }
+);
 </script>
 
 <template>
@@ -754,8 +829,14 @@ onMounted(() => {
           </v-card-title>
           <v-card-subtitle class="text-body-2 text-medium-emphasis">
             {{ formatDateLabel(assignmentDetails?.expectedDate) }}
-            <span v-if="assignmentDetails?.athleteId" class="text-medium-emphasis">
-              • Athlete: {{ assignmentDetails?.athleteId }}
+            <span
+              v-if="
+                assignmentDetails?.athleteId !== null &&
+                assignmentDetails?.athleteId !== undefined
+              "
+              class="text-medium-emphasis"
+            >
+              • Athlete: {{ formatAthleteLabel(assignmentDetails) }}
             </span>
             <span
               v-if="assignmentTeamNames.length"
