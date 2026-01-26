@@ -6,6 +6,7 @@ on:
     types: [closed]
     branches:
       - dev
+  workflow_dispatch:
 
 jobs:
   aws-deploy:
@@ -41,5 +42,6 @@ jobs:
           REMOTE_HOST: "project3.eaglesoftwareteam.com"
           REMOTE_USER: ubuntu
           TARGET: "/var/www/html/seiv2025/p3/t3"
+
 
 
