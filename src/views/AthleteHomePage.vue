@@ -31,85 +31,29 @@
         >
           Go To Workouts
         </v-btn>
-        <v-card class="pa-3 elevation-2" rounded="xl">
-          <v-card-title class="text-subtitle-1 font-weight-bold">
-            Workouts Completed This Week
-          </v-card-title>
-          <v-card-text class="pt-2">
-            <div class="d-flex flex-column align-center text-center">
-              <div class="text-body-2 mb-2">
-                {{ completedThisWeek }} / {{ totalThisWeek }} Workouts
-              </div>
-              <v-progress-linear
-                :model-value="weeklyCompletionRate"
-                height="10"
-                color="primary"
-                rounded
-                striped
-                class="w-100"
-              ></v-progress-linear>
-              <div class="text-caption mt-2 grey--text">
-                {{ weeklyCompletionRate }}% Complete this week
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
+        <workout-completion-card
+          :completedWorkouts = completedThisWeek
+          :totalWorkouts = totalThisWeek
+        />
       </v-col>
     </v-row>
 
     <v-row class="mb-4" dense>
       <v-col cols="12">
-        <v-card class="pa-3 elevation-2" rounded="xl">
-          <v-card-title class="text-subtitle-1 font-weight-bold">
-            Average Mile Time
-          </v-card-title>
-          <v-card-text class="pt-2">
-            <div class="d-flex flex-column align-center text-center">
-              <div class="text-h5 font-weight-bold">{{ averageMileTime }}</div>
-              <div class="text-caption grey--text mb-2">
-                {{ mileTimeSubtext }}
-              </div>
-            </div>
-            <v-sparkline
-              v-if="mileTimeHistory.length > 0"
-              :value="mileTimeHistory"
-              color="primary"
-              height="60"
-              smooth
-              line-width="3"
-              padding="8"
-            ></v-sparkline>
-            <div v-else class="text-caption text-center grey--text">
-              No cardio data available for the week
-            </div>
-          </v-card-text>
-        </v-card>
+        <average-mile-time-card
+          :averageMileTime=averageMileTime
+          :mileTimeSubtext=mileTimeSubtext
+          :mileTimeHistory=mileTimeHistory
+        />
       </v-col>
     </v-row>
 
     <v-row dense>
       <v-col cols="12">
-        <v-card class="pa-3 elevation-2" rounded="xl">
-          <v-card-title class="text-subtitle-1 font-weight-bold">
-            Lifting History
-          </v-card-title>
-          <v-card-text class="pt-2">
-  <div
-    v-if="Object.keys(personalRecords).length > 0"
-    v-for="(weight, exercise) in personalRecords"
-    :key="exercise"
-    class="d-flex justify-space-between text-body-2 mb-1"
-  >
-    <span>{{ exercise }}</span>
-    <span class="font-weight-medium">{{ weight }} lbs</span>
-  </div>
-  <div class="d-flex flex-column align-center text-center mt-2">
-    <div class="text-caption grey--text">
-      {{ liftingSubtext }}
-    </div>
-  </div>
-</v-card-text>
-        </v-card>
+        <athlete-lifting-history-card
+          :personalRecords="personalRecords"
+          :liftingSubtext="liftingSubtext"
+        />
       </v-col>
     </v-row>
   </v-container>
@@ -119,6 +63,9 @@
 import { ref, computed, onMounted } from "vue";
 import Utils from "../config/utils.js";
 import dayjs from 'dayjs';
+import WorkoutCompletionCard from "../components/WorkoutCompletionCard.vue";
+import AverageMileTimeCard from "../components/AverageMileTimeCard.vue";
+import AthleteLiftingHistoryCard from "../components/AthleteLiftingHistoryCard.vue";
 import apiClient from "../services/apiService";
 import { parseToLocalDate } from "../services/date";
 
